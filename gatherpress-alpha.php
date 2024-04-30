@@ -157,6 +157,22 @@ function gatherpress_alpha_ajax() {
 	);
 	$wpdb->query( $sql );
 
+	// Fix user meta.
+	$meta_keys = [
+		'gp_date_format'          => 'gatherpress_date_format',
+		'gp_event_updates_opt_in' => 'gatherpress_event_updates_opt_in',
+		'gp_time_format'          => 'gatherpress_time_format',
+		'gp_timezone'             => 'gatherpress_timezone',
+	];
+	foreach ($meta_keys as $old_meta_key => $new_meta_key) {
+		$sql = $wpdb->prepare(
+			"UPDATE {$wpdb->usermeta} SET meta_key = %s WHERE meta_key = %s",
+			$new_meta_key,
+			$old_meta_key
+		);
+		$wpdb->query($sql);
+	}
+
 	// Fix options.
 	$option_names = $wpdb->get_col("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'gp_%'");
 	foreach ($option_names as $option_name) {
