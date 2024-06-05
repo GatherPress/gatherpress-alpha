@@ -5,7 +5,7 @@
  * Description:  Powering Communities with WordPress.
  * Author:       The GatherPress Community
  * Author URI:   https://gatherpress.org/
- * Version:      0.0.1
+ * Version:      0.29.0
  * Requires PHP: 7.4
  * Text Domain:  gatherpress-alpha
  * Domain Path: /languages
@@ -13,6 +13,25 @@
  *
  * @package GatherPress
  */
+
+define( 'GATHERPRESS_ALPHA_VERSION', current( get_file_data( __FILE__, array( 'Version' ), 'plugin' ) ) );
+
+function gatherpress_alpha_admin_notice() {
+	if ( defined( 'GATHERPRESS_VERSION' ) && GATHERPRESS_VERSION !== GATHERPRESS_ALPHA_VERSION ) {
+		$message = __( 'GatherPress and GatherPress Alpha must be the same version.', 'gatherpress-alpha' );
+	} else {
+		return;
+	}
+
+	?>
+	<div class="notice notice-error">
+		<p>
+			<?php echo esc_html( $message ); ?>
+		</p>
+	</div>
+	<?php
+}
+add_action( 'admin_notices', 'gatherpress_alpha_admin_notice' );
 
 function gatherpress_alpha_sub_page( $sub_pages ) {
 	$sub_pages['alpha'] = array(
@@ -37,7 +56,7 @@ function gatherpress_alpha_settings_section( $page ) {
 		<h2><?php esc_html_e( 'Alpha', 'gatherpress-alpha' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Fix breaking changes to GatherPress', 'gatherpress-alpha' ); ?></p>
 		<p class="submit">
-			<button id="gatherpress-alpha" class="button button-primary"><?php esc_html_e( 'Fix GatherPress!', 'gatherpress-alpha' ); ?></button>
+			<button id="gatherpress-alpha" <?php echo GATHERPRESS_VERSION !== GATHERPRESS_ALPHA_VERSION ? 'disabled': ''; ?> class="button button-primary"><?php esc_html_e( 'Fix GatherPress!', 'gatherpress-alpha' ); ?></button>
 		</p>
 		<script>
 			const gatherPressAlphaButton = document.getElementById('gatherpress-alpha');
