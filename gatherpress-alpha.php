@@ -5,7 +5,7 @@
  * Description:  Powering Communities with WordPress.
  * Author:       The GatherPress Community
  * Author URI:   https://gatherpress.org/
- * Version:      0.29.0
+ * Version:      0.30.0-alpha
  * Requires PHP: 7.4
  * Text Domain:  gatherpress-alpha
  * Domain Path: /languages
@@ -111,7 +111,10 @@ function gatherpress_alpha_ajax() {
 	}
 	global $wpdb;
 
-	// Fix custom tables.
+	/**
+	 * Fix custom tables.
+	 */
+	// 0.29.0
 	$old_table_events = $wpdb->prefix . 'gp_events';
 	$new_table_events = $wpdb->prefix . 'gatherpress_events';
 	$old_table_rsvps = $wpdb->prefix . 'gp_rsvps';
@@ -119,7 +122,10 @@ function gatherpress_alpha_ajax() {
 	$sql = "RENAME TABLE `{$old_table_events}` TO `{$new_table_events}`, `{$old_table_rsvps}` TO `{$new_table_rsvps}`;";
 	$wpdb->query( $sql );
 
-	// Fix event post type.
+	/**
+	 * Fix event post type.
+	 */
+	// 0.29.0
 	$old_post_type = 'gp_event';
 	$new_post_type = 'gatherpress_event';
 	$sql = $wpdb->prepare(
@@ -129,7 +135,10 @@ function gatherpress_alpha_ajax() {
 	);
 	$wpdb->query( $sql );
 
-	// Fix venue post type.
+	/**
+	 * Fix venue post type.
+	 */
+	// 0.29.0
 	$old_post_type = 'gp_venue';
 	$new_post_type = 'gatherpress_venue';
 	$sql = $wpdb->prepare(
@@ -139,7 +148,10 @@ function gatherpress_alpha_ajax() {
 	);
 	$wpdb->query( $sql );
 
-	// Fix post meta.
+	/**
+	 * Fix post meta.
+	 */
+	// 0.29.0
 	$meta_keys = [
 		'max_guest_limit',
 		'enable_anonymous_rsvp',
@@ -156,7 +168,10 @@ function gatherpress_alpha_ajax() {
 		$wpdb->query($sql);
 	}
 
-	// Fix topic taxonomy.
+	/**
+	 * Fix topic taxonomy.
+	 */
+	// 0.29.0
 	$old_taxonomy = 'gp_topic';
 	$new_taxonomy = 'gatherpress_topic';
 	$sql = $wpdb->prepare(
@@ -166,7 +181,10 @@ function gatherpress_alpha_ajax() {
 	);
 	$wpdb->query( $sql );
 
-	// Fix venue taxonomy.
+	/**
+	 * Fix venue taxonomy.
+	 */
+	// 0.29.0
 	$old_taxonomy = '_gp_venue';
 	$new_taxonomy = '_gatherpress_venue';
 	$sql = $wpdb->prepare(
@@ -176,7 +194,10 @@ function gatherpress_alpha_ajax() {
 	);
 	$wpdb->query( $sql );
 
-	// Fix user meta.
+	/**
+	 * Fix user meta.
+	 */
+	// 0.29.0
 	$meta_keys = [
 		'gp_date_format'          => 'gatherpress_date_format',
 		'gp_event_updates_opt_in' => 'gatherpress_event_updates_opt_in',
@@ -192,7 +213,10 @@ function gatherpress_alpha_ajax() {
 		$wpdb->query($sql);
 	}
 
-	// Fix options.
+	/**
+	 * Fix options.
+	 */
+	// 0.29.0
 	$option_names = $wpdb->get_col("SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'gp_%'");
 	foreach ($option_names as $option_name) {
 		$new_option_name = 'gatherpress_' . substr($option_name, 3); // Remove 'gp_' prefix and prepend 'gatherpress_'
@@ -203,6 +227,14 @@ function gatherpress_alpha_ajax() {
 		);
 		$wpdb->query($sql);
 	}
+
+	// 0.30.0
+	$sql = $wpdb->prepare(
+		"UPDATE {$wpdb->options} SET option_name = %s WHERE option_name = %s",
+		'gatherpress_suppress_site_notification',
+		'gatherpress_suppress_membership_notification'
+	);
+	$wpdb->query($sql);
 
 	wp_send_json_success();
 }
