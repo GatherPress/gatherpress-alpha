@@ -14,6 +14,9 @@
  * @package GatherPress
  */
 
+use GatherPress\Core\Rsvp;
+use GatherPress\Core\Rsvp_Query;
+
 define( 'GATHERPRESS_ALPHA_VERSION', current( get_file_data( __FILE__, array( 'Version' ), 'plugin' ) ) );
 
 function gatherpress_alpha_admin_notice() {
@@ -121,6 +124,52 @@ function gatherpress_alpha_ajax() {
 	$new_table_rsvps = $wpdb->prefix . 'gatherpress_rsvps';
 	$sql = "RENAME TABLE `{$old_table_events}` TO `{$new_table_events}`, `{$old_table_rsvps}` TO `{$new_table_rsvps}`;";
 	$wpdb->query( $sql );
+
+	// 0.30.0
+	$rsvp_table_name = $wpdb->prefix . 'gatherpress_rsvps';
+	$sql = $wpdb->prepare( "SHOW TABLES LIKE %s", $rsvp_table_name );
+	$result = $wpdb->get_var( $sql );
+
+	if ( $result === $rsvp_table_name ) {
+		$rsvp_query = Rsvp_Query::get_instance();
+		$rsvps = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT post_id, user_id, timestamp, status, guests, anonymous FROM %i', $rsvp_table_name ), ARRAY_A );
+
+		$grouped_by_post_id = [];
+
+		foreach ( $rsvps as $key => $item ) {
+			$post_id = $item['post_id'];
+
+			if ( ! isset ($grouped_by_post_id[ $post_id ] ) ) {
+				$grouped_by_post_id[ $post_id ] = [];
+			}
+			$grouped_by_post_id[ $post_id ][] = $item;
+		}
+
+		foreach ( $grouped_by_post_id as $post_id => $items ) {
+			$rsvp_object = new Rsvp( $post_id );
+
+			foreach ( $items as $item ) {
+				$rsvp_object->save( $item['user_id'], $item['status'], $item['anonymous'], $item['guests'] );
+				$rsvp_comment = $rsvp_query->get_rsvp(
+					array(
+						'post_id' => $item['post_id'],
+						'user_id' => $item['user_id'],
+					)
+				);
+				if ( $rsvp_comment ) {
+					wp_update_comment(
+						array(
+							'comment_ID' => $rsvp_comment->comment_ID,
+							'comment_date' => $item['timestamp'],
+							'comment_date_gmt' => get_gmt_from_date( $item['timestamp'] ),
+						)
+					);
+				}
+			}
+		}
+
+		$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $rsvp_table_name ) );
+	}
 
 	/**
 	 * Fix event post type.
