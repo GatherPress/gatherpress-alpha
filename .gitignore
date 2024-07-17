@@ -1,0 +1,57 @@
+# Logs and databases #
+######################
+*.log
+*.sql
+
+# OS generated files #
+######################
+.DS_Store*
+ehthumbs.db
+Thumbs.db
+._*
+*.css.map
+*.js.map
+
+# Editor/IDE generated files #
+######################
+*.un~
+.idea
+nbproject
+.netbeans.xml
+
+# SASS #
+##########
+.sass-cache
+
+# Node #
+##########
+node_modules
+npm-debug.log
+typings
+
+# Composer #
+##########
+vendor
+
+# .wp-env #
+##########
+wp-core
+.phpunit.result.cache
+coverage.xml
+.env
+
+# Playwright #
+##########
+playwright-report/
+test-results/
+add-new-event.png
+event-page.png
+new-venue.png
+vanue-page.png
+
+# Jest / SonarCloud #
+##########
+coverage
+test-report.xml
+
+*.zip

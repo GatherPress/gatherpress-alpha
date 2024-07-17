@@ -1,3 +1,17 @@
+<?php
+/**
+ * Template for fixing breaking changes in GatherPress Alpha.
+ *
+ * This template provides UI elements and JavaScript functionality to fix breaking changes
+ * specific to GatherPress when using GatherPress Alpha.
+ *
+ * @package GatherPress_Alpha
+ */
+
+// Exit if accessed directly.
+defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
+?>
+
 <h2>
 	<?php esc_html_e( 'Alpha', 'gatherpress-alpha' ); ?>
 </h2>
