@@ -1,0 +1,9 @@
+{
+	"name": "gatherpress-alpha",
+	"scripts": {
+		"plugin-zip": "wp-scripts plugin-zip"
+	},
+	"devDependencies": {
+		"@wordpress/scripts": "^28.3.0"
+	}
+}
