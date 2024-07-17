@@ -20,8 +20,6 @@ use GatherPress\Core\Utility;
  * Class Setup.
  *
  * Manages plugin setup and initialization.
- *
- * @since 1.0.0
  */
 class Setup {
 	/**
@@ -33,8 +31,6 @@ class Setup {
 	 * Constructor for the Setup class.
 	 *
 	 * Initializes and sets up various components of the plugin.
-	 *
-	 * @since 1.0.0
 	 */
 	protected function __construct() {
 		$this->setup_hooks();
@@ -45,35 +41,12 @@ class Setup {
 	 *
 	 * This method adds hooks for different purposes as needed.
 	 *
-	 * @since 1.0.0
-	 *
 	 * @return void
 	 */
 	protected function setup_hooks(): void {
-		if ( defined( 'GATHERPRESS_VERSION' ) && GATHERPRESS_VERSION !== GATHERPRESS_ALPHA_VERSION ) {
-			add_action( 'admin_notices', array( $this, 'version_notice' ) );
-			return;
-		}
-
 		add_action( 'gatherpress_sub_pages', array( $this, 'setup_sub_page' ) );
 		add_action( 'gatherpress_settings_section', array( $this, 'settings_section' ), 9 );
 		add_action( 'wp_ajax_gatherpress_alpha', array( $this, 'ajax_fix' ) );
-	}
-
-	/**
-	 * Displays an error notice if GatherPress and GatherPress Alpha versions do not match.
-	 *
-	 * This function outputs an error notice in the WordPress admin area, indicating
-	 * that the versions of GatherPress and GatherPress Alpha must be the same.
-	 *
-	 * @return void
-	 */
-	public function version_notice(): void {
-		Utility::render_template(
-			sprintf( '%s/includes/templates/notice.php', GATHERPRESS_ALPHA_CORE_PATH ),
-			array(),
-			true
-		);
 	}
 
 	/**

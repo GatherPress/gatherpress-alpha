@@ -37,6 +37,42 @@ function gatherpress_alpha_autoloader( array $namespace ): array {
 add_filter( 'gatherpress_autoloader', 'gatherpress_alpha_autoloader' );
 
 /**
+ * Displays an error notice if GatherPress and GatherPress Alpha versions do not match.
+ *
+ * This function outputs an error notice in the WordPress admin area, indicating
+ * that the versions of GatherPress and GatherPress Alpha must be the same.
+ *
+ * @return void
+ */
+function gatherpress_alpha_version_notice(): void {
+	?>
+	<div class="notice notice-error">
+		<p>
+			<?php esc_html_e( 'GatherPress and GatherPress Alpha must be the same version.', 'gatherpress-alpha' ); ?>
+		</p>
+	</div>
+	<?php
+}
+
+/**
+ * Displays an error notice indicating GatherPress is not installed.
+ *
+ * This function outputs an error notice in the WordPress admin area when
+ * GatherPress is not detected as installed, prompting users to install it.
+ *
+ * @return void
+ */
+function gatherpress_alpha_not_installed(): void {
+	?>
+	<div class="notice notice-error">
+		<p>
+			<?php esc_html_e( 'GatherPress is not installed.', 'gatherpress-alpha' ); ?>
+		</p>
+	</div>
+	<?php
+}
+
+/**
  * Initializes the GatherPress Alpha setup.
  *
  * This function hooks into the 'plugins_loaded' action to ensure that
@@ -46,12 +82,13 @@ add_filter( 'gatherpress_autoloader', 'gatherpress_alpha_autoloader' );
  * @return void
  */
 function gatherpress_alpha_setup(): void {
-	include_once ABSPATH . 'wp-admin/includes/plugin.php';
-
-	if ( ! is_plugin_active( 'gatherpress/gatherpress.php' ) ) {
-		return;
+	if ( ! defined( 'GATHERPRESS_VERSION' ) ) {
+		add_action( 'admin_notices', 'gatherpress_alpha_not_installed' );
+	} elseif ( defined( 'GATHERPRESS_VERSION' ) && GATHERPRESS_VERSION !== GATHERPRESS_ALPHA_VERSION ) {
+		add_action( 'admin_notices', 'gatherpress_alpha_version_notice' );
+	} else {
+		GatherPress_Alpha\Setup::get_instance();
 	}
 
-	GatherPress_Alpha\Setup::get_instance();
 }
 add_action( 'plugins_loaded', 'gatherpress_alpha_setup' );
