@@ -305,6 +305,50 @@ class Setup {
 			$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $rsvp_table_name ) );
 		}
 
+		// Update venue post meta to include latitude and longitude values.
+		$meta_key = 'gatherpress_venue_information';
+
+		$query = $wpdb->prepare(
+			"SELECT post_id, meta_value FROM $wpdb->postmeta WHERE meta_key = %s",
+			$meta_key
+		);
+
+		$results = $wpdb->get_results( $query );
+
+		if ( ! empty( $results ) ) {
+			foreach ( $results as $result ) {
+				$post_id    = $result->post_id;
+				$meta_value = $result->meta_value;
+				$meta_value = json_decode( $meta_value );
+
+				if (
+					is_object( $meta_value ) &&
+					( empty( $meta_value->latitude ) || empty( $meta_value->longitude ) ) &&
+					! empty( $meta_value->fullAddress )
+				) {
+					$geolocation = wp_safe_remote_get(
+						'https://nominatim.openstreetmap.org/search?q=' . urlencode( $meta_value->fullAddress ) . '&format=geojson'
+					);
+
+					if ( ! is_wp_error( $geolocation ) ) {
+						$body = wp_remote_retrieve_body( $geolocation );
+						$data = json_decode( $body );
+
+						if ( ! empty( $data ) && isset( $data->features[0]->geometry->coordinates ) ) {
+							$coordinates = $data->features[0]->geometry->coordinates;
+							$latitude    = $coordinates[1];
+							$longitude   = $coordinates[0];
+
+							$meta_value->latitude  = $latitude;
+							$meta_value->longitude = $longitude;
+
+							update_post_meta( $post_id, 'gatherpress_venue_information', json_encode( $meta_value ) );
+						}
+					}
+				}
+			}
+		}
+
 		// Fix options.
 		$sql = $wpdb->prepare(
 			'UPDATE %i SET option_name = %s WHERE option_name = %s',
