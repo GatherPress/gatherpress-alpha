@@ -15,6 +15,8 @@ use GatherPress\Core\Rsvp_Query;
 use GatherPress\Core\Traits\Singleton;
 use GatherPress\Core\Settings;
 use GatherPress\Core\Utility;
+use GatherPress_Alpha\Commands\Cli;
+use WP_CLI;
 
 /**
  * Class Setup.
@@ -33,7 +35,22 @@ class Setup {
 	 * Initializes and sets up various components of the plugin.
 	 */
 	protected function __construct() {
+		$this->setup_cli();
 		$this->setup_hooks();
+	}
+
+	/**
+	 * Sets up WP-CLI commands for the GatherPress Alpha plugin.
+	 *
+	 * This method checks if WP-CLI is defined and active, and if so, adds the CLI commands
+	 * specific to handling breaking changes in the GatherPress Alpha plugin.
+	 *
+	 * @return void
+	 */
+	protected function setup_cli(): void {
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			WP_CLI::add_command( 'gatherpress alpha', Cli::class );
+		}
 	}
 
 	/**
@@ -122,12 +139,16 @@ class Setup {
 	 * It checks user capabilities to ensure the user has the appropriate permissions:
 	 * - For multisite: the user must have the 'manage_network' capability.
 	 * - For single site: the user must have the 'manage_options' capability.
+	 * - If run via WP CLI, permission checks are bypassed.
 	 *
 	 * @return void
 	 */
 	public function fix(): void {
+		// Check if running via WP CLI
+		$is_cli = defined( 'WP_CLI' ) && WP_CLI;
+
 		if ( is_multisite() ) {
-			if ( current_user_can( 'manage_network' ) ) {
+			if ( $is_cli || current_user_can( 'manage_network' ) ) {
 				$sites = get_sites();
 
 				foreach ( $sites as $site ) {
@@ -142,7 +163,7 @@ class Setup {
 				wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 			}
 		} else {
-			if ( current_user_can( 'manage_options' ) ) {
+			if ( $is_cli || current_user_can( 'manage_options' ) ) {
 				$this->fix__0_29_0();
 				$this->fix__0_30_0();
 			} else {
@@ -162,10 +183,27 @@ class Setup {
 		// Fix custom tables.
 		$old_table_events = $wpdb->prefix . 'gp_events';
 		$new_table_events = $wpdb->prefix . 'gatherpress_events';
-		$old_table_rsvps = $wpdb->prefix . 'gp_rsvps';
-		$new_table_rsvps = $wpdb->prefix . 'gatherpress_rsvps';
-		$sql = "RENAME TABLE `{$old_table_events}` TO `{$new_table_events}`, `{$old_table_rsvps}` TO `{$new_table_rsvps}`;";
-		$wpdb->query( $sql );
+		$old_table_rsvps  = $wpdb->prefix . 'gp_rsvps';
+		$new_table_rsvps  = $wpdb->prefix . 'gatherpress_rsvps';
+
+		$tables_to_check = array(
+			$old_table_events => $new_table_events,
+			$old_table_rsvps  => $new_table_rsvps
+		);
+
+		foreach ( $tables_to_check as $old_table => $new_table ) {
+			$table_exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $old_table ) );
+
+			if ( $table_exists ) {
+				$sql = $wpdb->prepare(
+					'RENAME TABLE %i TO %i;',
+					$old_table,
+					$new_table
+				);
+
+				$wpdb->query( $sql );
+			}
+		}
 
 		// Fix event post type.
 		$old_post_type = 'gp_event';
