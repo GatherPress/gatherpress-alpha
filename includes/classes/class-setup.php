@@ -102,7 +102,10 @@ class Setup {
 	 * @return void
 	 */
 	public function ajax_fix(): void {
-		if ( ! wp_verify_nonce( $_REQUEST['nonce'], 'gatherpress_alpha_nonce' ) ) {
+		if (
+			! current_user_can( 'manage_options' ) &&
+			! wp_verify_nonce( $_REQUEST['nonce'], 'gatherpress_alpha_nonce' )
+		) {
 			wp_send_json_error();
 		}
 
@@ -114,14 +117,38 @@ class Setup {
 	/**
 	 * Applies fixes specific to different versions of the plugin.
 	 *
-	 * Calls version-specific fix methods to ensure compatibility and correct issues
-	 * introduced in various plugin versions.
+	 * This method calls version-specific fix methods to ensure compatibility
+	 * and correct issues introduced in various plugin versions.
+	 * It checks user capabilities to ensure the user has the appropriate permissions:
+	 * - For multisite: the user must have the 'manage_network' capability.
+	 * - For single site: the user must have the 'manage_options' capability.
 	 *
 	 * @return void
 	 */
 	public function fix(): void {
-		$this->fix__0_29_0();
-		$this->fix__0_30_0();
+		if ( is_multisite() ) {
+			if ( current_user_can( 'manage_network' ) ) {
+				$sites = get_sites();
+
+				foreach ( $sites as $site ) {
+					switch_to_blog( $site->blog_id );
+
+					$this->fix__0_29_0();
+					$this->fix__0_30_0();
+
+					restore_current_blog();
+				}
+			} else {
+				wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
+			}
+		} else {
+			if ( current_user_can( 'manage_options' ) ) {
+				$this->fix__0_29_0();
+				$this->fix__0_30_0();
+			} else {
+				wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
+			}
+		}
 	}
 
 	/**
