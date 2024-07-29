@@ -147,28 +147,22 @@ class Setup {
 		// Check if running via WP CLI
 		$is_cli = defined( 'WP_CLI' ) && WP_CLI;
 
-		if ( is_multisite() ) {
-			if ( $is_cli || current_user_can( 'manage_network' ) ) {
-				$sites = get_sites();
+		if ( is_multisite() && ( $is_cli || current_user_can( 'manage_network' ) ) ) {
+			$sites = get_sites();
 
-				foreach ( $sites as $site ) {
-					switch_to_blog( $site->blog_id );
+			foreach ( $sites as $site ) {
+				switch_to_blog( $site->blog_id );
 
-					$this->fix__0_29_0();
-					$this->fix__0_30_0();
-
-					restore_current_blog();
-				}
-			} else {
-				wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
-			}
-		} else {
-			if ( $is_cli || current_user_can( 'manage_options' ) ) {
 				$this->fix__0_29_0();
 				$this->fix__0_30_0();
-			} else {
-				wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
+
+				restore_current_blog();
 			}
+		} elseif ( $is_cli || current_user_can( 'manage_options' ) ) {
+			$this->fix__0_29_0();
+			$this->fix__0_30_0();
+		} else {
+			wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 		}
 	}
 
