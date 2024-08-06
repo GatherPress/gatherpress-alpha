@@ -12,11 +12,32 @@
 defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 ?>
 
+<style>
+	.gatherpress-saving {
+		display: none;
+		align-items: center;
+	}
+	.gatherpress-saving.gatherpress-is-saving {
+		display: flex;
+	}
+	.gatherpress-saving .spinner {
+		float: none;
+	}
+	.gatherpress-message {
+		font-weight: bold;
+	}
+</style>
 <h2>
 	<?php esc_html_e( 'Alpha', 'gatherpress-alpha' ); ?>
 </h2>
 <p class="description">
-	<?php esc_html_e( 'Fix breaking changes to GatherPress', 'gatherpress-alpha' ); ?>
+	<?php esc_html_e( 'Fix breaking changes to GatherPress.', 'gatherpress-alpha' ); ?>
+</p>
+<p id="gatherpress-saving" class="gatherpress-saving">
+	<span class="spinner is-active"></span>
+	<span class="gatherpress-message">
+		<?php esc_html_e( 'This may take a minute. Please be patient and do not close this window.', 'gatherpress-alpha' ); ?>
+	</span>
 </p>
 <p class="submit">
 	<button id="gatherpress-alpha" class="button button-primary">
@@ -29,6 +50,7 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 	document.getElementById('gatherpress-alpha').addEventListener('click', function(e) {
 		e.preventDefault();
 		gatherPressAlphaButton.disabled = true;
+		document.getElementById('gatherpress-saving').classList.add('gatherpress-is-saving');
 
 		// Define the data to be sent in the request
 		const data = { action: 'gatherpress_alpha', nonce: '<?php echo wp_create_nonce( 'gatherpress_alpha_nonce' ); ?>' };
@@ -56,9 +78,11 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 			if (response.success) {
 				alert('<?php esc_html_e( 'Success!', 'gatherpress-alpha' ); ?>');
 				gatherPressAlphaButton.disabled = false;
+				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
 			} else {
 				alert('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 				gatherPressAlphaButton.disabled = false;
+				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
 			}
 		})
 		.catch(error => {
