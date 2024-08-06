@@ -16,3 +16,10 @@ As we continue to refine and develop GatherPress, please use the GatherPress Alp
 5. **Repeat for Updates**: Follow these steps for each GatherPress update to ensure compatibility.
 
 This process helps us manage technical debt effectively as we work towards the launch of version 1.0.0 of the plugin.
+
+## Advanced Method
+
+GatherPress Alpha also has a WP-CLI you can run to fix GatherPress. Simply run:
+```
+wp gatherpress alpha fix
+```
