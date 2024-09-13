@@ -429,7 +429,8 @@ class Setup {
 	 * @return void
 	 */
 	private function fix__0_31_0(): void {
-		$batch_size = 100; // Number of posts to process per batch.
+		// Add datetime meta and resave.
+		$batch_size = 100;
 		$paged      = 1;
 
 		do {
@@ -437,16 +438,14 @@ class Setup {
 				'post_type'      => 'gatherpress_event',
 				'posts_per_page' => $batch_size,
 				'paged'          => $paged,
-				'fields'         => 'ids', // Only retrieve post IDs for efficiency.
+				'fields'         => 'ids',
 			);
 			$query = new WP_Query( $args );
 
-			// If no posts found, break the loop.
 			if ( ! $query->have_posts() ) {
 				break;
 			}
 
-			// Loop through each post and update the meta.
 			foreach ( $query->posts as $post_id ) {
 				if ( get_post_meta( $post_id, 'gatherpress_datetime', true ) ) {
 					continue;
