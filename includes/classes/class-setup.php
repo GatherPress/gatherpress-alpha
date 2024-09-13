@@ -10,6 +10,7 @@ namespace GatherPress_Alpha;
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
+use GatherPress\Core\Event;
 use GatherPress\Core\Rsvp;
 use GatherPress\Core\Rsvp_Query;
 use GatherPress\Core\Traits\Singleton;
@@ -17,6 +18,7 @@ use GatherPress\Core\Settings;
 use GatherPress\Core\Utility;
 use GatherPress_Alpha\Commands\Cli;
 use WP_CLI;
+use WP_Query;
 
 /**
  * Class Setup.
@@ -155,12 +157,14 @@ class Setup {
 
 				$this->fix__0_29_0();
 				$this->fix__0_30_0();
+				$this->fix__0_31_0();
 
 				restore_current_blog();
 			}
 		} elseif ( $is_cli || current_user_can( 'manage_options' ) ) {
 			$this->fix__0_29_0();
 			$this->fix__0_30_0();
+			$this->fix__0_31_0();
 		} else {
 			wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 		}
@@ -417,5 +421,56 @@ class Setup {
 		);
 
 		$wpdb->query( $sql );
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.30.0 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_31_0(): void {
+		$batch_size = 100; // Number of posts to process per batch.
+		$paged      = 1;
+
+		do {
+			$args  = array(
+				'post_type'      => 'gatherpress_event',
+				'posts_per_page' => $batch_size,
+				'paged'          => $paged,
+				'fields'         => 'ids', // Only retrieve post IDs for efficiency.
+			);
+			$query = new WP_Query( $args );
+
+			// If no posts found, break the loop.
+			if ( ! $query->have_posts() ) {
+				break;
+			}
+
+			// Loop through each post and update the meta.
+			foreach ( $query->posts as $post_id ) {
+				if ( get_post_meta( $post_id, 'gatherpress_datetime', true ) ) {
+					continue;
+				}
+
+				$event = new Event( $post_id );
+				$data  = $event->get_datetime();
+				$meta  = json_encode (
+					array(
+						'dateTimeStart' => $data['datetime_start'],
+						'dateTimeEnd'   => $data['datetime_end'],
+						'timezone'      => $data['timezone'],
+
+					)
+				);
+
+				update_post_meta( $post_id, 'gatherpress_datetime', $meta );
+
+				$event->save_datetimes( $data );
+			}
+
+			wp_reset_postdata();
+
+			$paged++;
+		} while ( $query->have_posts() );
 	}
 }
