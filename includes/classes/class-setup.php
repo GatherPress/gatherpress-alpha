@@ -158,6 +158,7 @@ class Setup {
 				$this->fix__0_29_0();
 				$this->fix__0_30_0();
 				$this->fix__0_31_0();
+				$this->fix__0_32_0();
 
 				restore_current_blog();
 			}
@@ -165,6 +166,7 @@ class Setup {
 			$this->fix__0_29_0();
 			$this->fix__0_30_0();
 			$this->fix__0_31_0();
+			$this->fix__0_32_0();
 		} else {
 			wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 		}
@@ -424,7 +426,7 @@ class Setup {
 	}
 
 	/**
-	 * Fixes specific data issues that changed in 0.30.0 of the plugin.
+	 * Fixes specific data issues that changed in 0.31.0 of the plugin.
 	 *
 	 * @return void
 	 */
@@ -471,5 +473,29 @@ class Setup {
 
 			$paged++;
 		} while ( $query->have_posts() );
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.32.0 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_32_0(): void {
+		global $wpdb;
+
+		$rsvp_template     = file_get_contents( GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/rsvp-0.32.0.html' );
+		$response_template = file_get_contents( GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/rsvp-response-0.32.0.html' );
+
+		$wpdb->query( $wpdb->prepare( "
+			UPDATE {$wpdb->posts}
+			SET post_content = REPLACE(post_content, '<!-- wp:gatherpress/rsvp /-->', %s)
+			WHERE post_type = 'gatherpress_event'
+		", $rsvp_template ) );
+
+		$wpdb->query( $wpdb->prepare( "
+			UPDATE {$wpdb->posts}
+			SET post_content = REPLACE(post_content, '<!-- wp:gatherpress/rsvp-response /-->', %s)
+			WHERE post_type = 'gatherpress_event'
+		", $response_template ) );
 	}
 }
