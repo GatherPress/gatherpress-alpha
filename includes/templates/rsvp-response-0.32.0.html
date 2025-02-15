@@ -1,0 +1,41 @@
+<!-- wp:gatherpress/rsvp-response -->
+<div class="wp-block-gatherpress-rsvp-response"><!-- wp:group {"style":{"spacing":{"blockGap":"var:preset|spacing|20","margin":{"bottom":"var:preset|spacing|30"}}},"layout":{"type":"flex","flexWrap":"nowrap","justifyContent":"space-between"}} -->
+	<div class="wp-block-group" style="margin-bottom:var(--wp--preset--spacing--30)"><!-- wp:group {"style":{"spacing":{"blockGap":"var:preset|spacing|20","margin":{"bottom":"var:preset|spacing|30"}}},"layout":{"type":"flex","flexWrap":"nowrap"}} -->
+	<div class="wp-block-group" style="margin-bottom:var(--wp--preset--spacing--30)"><!-- wp:gatherpress/icon {"icon":"groups"} /-->
+
+	<!-- wp:gatherpress/dropdown {"actAsSelect":true,"dropdownId":"dropdown-7968ad05-cf12-41ae-8392-7fb01e166188","label":"Attending (%d)","metadata":{"name":"Attending (%d)"}} -->
+	<div class="wp-block-gatherpress-dropdown"><a href="#" class="wp-block-gatherpress-dropdown__trigger">Attending (%d)</a><div class="wp-block-gatherpress-dropdown__menu"><!-- wp:gatherpress/dropdown-item {"text":"\u003ca href=\u0022#\u0022\u003eAttending (%d)\u003c/a\u003e","metadata":{"name":"Attending (%d)"},"className":"gatherpress\u002d\u002drsvp-attending"} -->
+	<div class="wp-block-gatherpress-dropdown-item gatherpress--rsvp-attending"><a href="#">Attending (%d)</a></div>
+	<!-- /wp:gatherpress/dropdown-item -->
+
+	<!-- wp:gatherpress/dropdown-item {"text":"\u003ca href=\u0022#\u0022\u003eWaiting List (%d)\u003c/a\u003e","metadata":{"name":"Waiting List (%d)"},"className":"gatherpress\u002d\u002drsvp-waiting-list"} -->
+	<div class="wp-block-gatherpress-dropdown-item gatherpress--rsvp-waiting-list"><a href="#">Waiting List (%d)</a></div>
+	<!-- /wp:gatherpress/dropdown-item -->
+
+	<!-- wp:gatherpress/dropdown-item {"text":"\u003ca href=\u0022#\u0022\u003eNot Attending (%d)\u003c/a\u003e","metadata":{"name":"Not Attending (%d)"},"className":"gatherpress\u002d\u002drsvp-not-attending"} -->
+	<div class="wp-block-gatherpress-dropdown-item gatherpress--rsvp-not-attending"><a href="#">Not Attending (%d)</a></div>
+	<!-- /wp:gatherpress/dropdown-item --></div></div>
+	<!-- /wp:gatherpress/dropdown --></div>
+	<!-- /wp:group -->
+
+	<!-- wp:gatherpress/rsvp-response-toggle /--></div>
+	<!-- /wp:group -->
+
+	<!-- wp:group {"className":"gatherpress\u002d\u002drsvp-responses","layout":{"type":"grid","columns":3,"justifyContent":"center","alignContent":"space-around","minimumColumnWidth":"8rem"}} -->
+	<div class="wp-block-group gatherpress--rsvp-responses"><!-- wp:gatherpress/rsvp-template -->
+	<!-- wp:group {"metadata":{"name":"RSVP User Info"},"style":{"spacing":{"blockGap":0}}} -->
+	<div class="wp-block-group"><!-- wp:avatar {"isLink":true,"align":"center"} /-->
+
+	<!-- wp:comment-author-name {"textAlign":"center","metadata":{"name":"Display Name"},"style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"fontSize":"medium"} /-->
+
+	<!-- wp:gatherpress/rsvp-guest-count-display {"align":"center","style":{"spacing":{"margin":{"top":"0","bottom":"0"}}},"fontSize":"small"} /--></div>
+	<!-- /wp:group -->
+	<!-- /wp:gatherpress/rsvp-template --></div>
+	<!-- /wp:group -->
+
+	<!-- wp:group {"metadata":{"name":"Empty RSVP"},"className":"gatherpress\u002d\u002dempty-rsvp gatherpress\u002d\u002dis-not-visible"} -->
+	<div class="wp-block-group gatherpress--empty-rsvp gatherpress--is-not-visible"><!-- wp:paragraph {"metadata":{"name":"Empty RSVP Text"}} -->
+	<p>No one is attending this event yet.</p>
+	<!-- /wp:paragraph --></div>
+	<!-- /wp:group --></div>
+	<!-- /wp:gatherpress/rsvp-response -->
