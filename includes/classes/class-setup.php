@@ -159,6 +159,7 @@ class Setup {
 				$this->fix__0_30_0();
 				$this->fix__0_31_0();
 				$this->fix__0_32_0();
+				$this->fix__0_33_0();
 
 				restore_current_blog();
 			}
@@ -167,6 +168,7 @@ class Setup {
 			$this->fix__0_30_0();
 			$this->fix__0_31_0();
 			$this->fix__0_32_0();
+			$this->fix__0_33_0();
 		} else {
 			wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 		}
@@ -497,5 +499,22 @@ class Setup {
 			SET post_content = REPLACE(post_content, '<!-- wp:gatherpress/rsvp-response /-->', %s)
 			WHERE post_type = 'gatherpress_event'
 		", $response_template ) );
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.33.0 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_33_0(): void {
+		global $wpdb;
+
+		$add_to_calendar_template = file_get_contents( GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/add-to-calendar-0.33.0.html' );
+
+		$wpdb->query( $wpdb->prepare( "
+			UPDATE {$wpdb->posts}
+			SET post_content = REPLACE(post_content, '<!-- wp:gatherpress/add-to-calendar /-->', %s)
+			WHERE post_type = 'gatherpress_event'
+		", $add_to_calendar_template ) );
 	}
 }
