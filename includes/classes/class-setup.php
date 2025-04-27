@@ -516,5 +516,7 @@ class Setup {
 			SET post_content = REPLACE(post_content, '<!-- wp:gatherpress/add-to-calendar /-->', %s)
 			WHERE post_type = 'gatherpress_event'
 		", $add_to_calendar_template ) );
+
+		delete_option( 'gatherpress_suppress_site_notification' );
 	}
 }
