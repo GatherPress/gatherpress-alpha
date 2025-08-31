@@ -33,6 +33,18 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 <p class="description">
 	<?php esc_html_e( 'Fix breaking changes to GatherPress.', 'gatherpress-alpha' ); ?>
 </p>
+<div style="background: #f9f9f9; border-left: 4px solid #0073aa; padding: 12px; margin: 16px 0;">
+	<h3 style="margin-top: 0;"><?php esc_html_e( 'Version 0.33.0 Changes', 'gatherpress-alpha' ); ?></h3>
+	<p><strong><?php esc_html_e( 'CSS Class Name Updates:', 'gatherpress-alpha' ); ?></strong></p>
+	<ul style="margin-left: 20px;">
+		<li><?php esc_html_e( 'Modal classes: gatherpress--is-rsvp-modal → gatherpress-modal--rsvp', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'State classes: gatherpress--is-not-visible → gatherpress--is-hidden', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Field classes: gatherpress-field-type-* → gatherpress-field--*', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'RSVP status: gatherpress--rsvp-attending → gatherpress--is-attending', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'And more...', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'This migration updates saved block content in your database to use the new class naming conventions.', 'gatherpress-alpha' ); ?></em></p>
+</div>
 <p id="gatherpress-saving" class="gatherpress-saving">
 	<span class="spinner is-active"></span>
 	<span class="gatherpress-message">
