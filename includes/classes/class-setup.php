@@ -517,6 +517,127 @@ class Setup {
 			WHERE post_type = 'gatherpress_event'
 		", $add_to_calendar_template ) );
 
+		// Fix CSS class names that changed in 0.33.0.
+		$this->fix_css_class_names__0_33_0();
+
 		delete_option( 'gatherpress_suppress_site_notification' );
+	}
+
+	/**
+	 * Fixes CSS class names that changed in 0.33.0 of the plugin.
+	 *
+	 * Updates stored block content in the database to use the new CSS class naming conventions.
+	 * This is necessary because block content is serialized and stored in the database,
+	 * so old class names would persist without this migration.
+	 *
+	 * @return void
+	 */
+	private function fix_css_class_names__0_33_0(): void {
+		global $wpdb;
+
+		// Define class name mappings for safe replacement.
+		// Note: Order matters! More specific patterns should come first to avoid conflicts.
+		$class_mappings = array(
+			// Modal trigger classes (action-like to state-like).
+			// Handle combined classes first to avoid partial matches.
+			'is-style-outline gatherpress--close-modal' => 'is-style-outline gatherpress--has-modal-trigger',
+			'gatherpress--open-modal'        => 'gatherpress--has-modal-trigger',
+			'gatherpress--close-modal'       => 'gatherpress--has-modal-trigger',
+			
+			// Modal identifier classes (modifier to component pattern).
+			'gatherpress--is-rsvp-modal'     => 'gatherpress-modal--rsvp',
+			'gatherpress--is-login-modal'    => 'gatherpress-modal--login',
+			
+			// Visibility classes (negative to positive form).
+			'gatherpress--is-not-visible'    => 'gatherpress--is-hidden',
+			
+			// Field type classes (type-prefix to modifier pattern).
+			'gatherpress-field-type-checkbox' => 'gatherpress-field--checkbox',
+			'gatherpress-field-type-radio'    => 'gatherpress-field--radio',
+			'gatherpress-field-type-text'     => 'gatherpress-field--text',
+			'gatherpress-field-type-email'    => 'gatherpress-field--email',
+			'gatherpress-field-type-textarea' => 'gatherpress-field--textarea',
+			'gatherpress-field-type-number'   => 'gatherpress-field--number',
+			'gatherpress-field-type-url'      => 'gatherpress-field--url',
+			'gatherpress-field-type-tel'      => 'gatherpress-field--tel',
+			'gatherpress-field-type-select'   => 'gatherpress-field--select',
+			'gatherpress-field-type-hidden'   => 'gatherpress-field--hidden',
+			
+			// RSVP state classes (action-like to state-like).
+			'gatherpress--rsvp-attending'     => 'gatherpress--is-attending',
+			'gatherpress--rsvp-waiting-list'  => 'gatherpress--is-waiting-list',
+			'gatherpress--rsvp-not-attending' => 'gatherpress--is-not-attending',
+			
+			// RSVP action classes.
+			'gatherpress--empty-rsvp'         => 'gatherpress--is-empty',
+			'gatherpress--update-rsvp'        => 'gatherpress--has-rsvp-update',
+		);
+
+		// Update post content for all post types that might contain GatherPress blocks.
+		$post_types = array( 'gatherpress_event', 'page', 'post' );
+		
+		foreach ( $post_types as $post_type ) {
+			foreach ( $class_mappings as $old_class => $new_class ) {
+				// Only process exact class name matches to avoid partial replacements.
+				// This approach is safer for database content migration.
+				$exact_patterns = array(
+					// Exact className attribute matches.
+					"className=\"{$old_class}\"" => "className=\"{$new_class}\"",
+					"className='{$old_class}'" => "className='{$new_class}'",
+					
+					// Class at start of className with space after.
+					"className=\"{$old_class} " => "className=\"{$new_class} ",
+					"className='{$old_class} " => "className='{$new_class} ",
+					
+					// Class at end of className with space before.
+					" {$old_class}\"" => " {$new_class}\"",
+					" {$old_class}'" => " {$new_class}'",
+					
+					// Class in middle with spaces on both sides.
+					" {$old_class} " => " {$new_class} ",
+					
+					// Same patterns for rendered HTML class attributes.
+					"class=\"{$old_class}\"" => "class=\"{$new_class}\"",
+					"class='{$old_class}'" => "class='{$new_class}'",
+					"class=\"{$old_class} " => "class=\"{$new_class} ",
+					"class='{$old_class} " => "class='{$new_class} ",
+				);
+				
+				foreach ( $exact_patterns as $old_pattern => $new_pattern ) {
+					$sql = $wpdb->prepare( "
+						UPDATE {$wpdb->posts}
+						SET post_content = REPLACE(post_content, %s, %s)
+						WHERE post_type = %s
+						AND post_content LIKE %s
+					", $old_pattern, $new_pattern, $post_type, '%' . $old_pattern . '%' );
+					
+					$wpdb->query( $sql );
+				}
+			}
+		}
+
+		// Also update any saved block patterns or reusable blocks.
+		foreach ( $class_mappings as $old_class => $new_class ) {
+			$exact_patterns = array(
+				"className=\"{$old_class}\"" => "className=\"{$new_class}\"",
+				"className='{$old_class}'" => "className='{$new_class}'",
+				"className=\"{$old_class} " => "className=\"{$new_class} ",
+				"className='{$old_class} " => "className='{$new_class} ",
+				" {$old_class}\"" => " {$new_class}\"",
+				" {$old_class}'" => " {$new_class}'",
+				" {$old_class} " => " {$new_class} ",
+			);
+			
+			foreach ( $exact_patterns as $old_pattern => $new_pattern ) {
+				$sql = $wpdb->prepare( "
+					UPDATE {$wpdb->posts}
+					SET post_content = REPLACE(post_content, %s, %s)
+					WHERE post_type = 'wp_block'
+					AND post_content LIKE %s
+				", $old_pattern, $new_pattern, '%' . $old_pattern . '%' );
+				
+				$wpdb->query( $sql );
+			}
+		}
 	}
 }
