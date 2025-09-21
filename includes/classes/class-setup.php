@@ -567,7 +567,7 @@ class Setup {
 			'gatherpress--rsvp-not-attending' => 'gatherpress--is-not-attending',
 			
 			// RSVP action classes.
-			'gatherpress--empty-rsvp'         => 'gatherpress--is-empty',
+			'gatherpress--empty-rsvp'         => 'gatherpress-rsvp-response--no-responses',
 			'gatherpress--update-rsvp'        => 'gatherpress-rsvp--trigger-update',
 		);
 
