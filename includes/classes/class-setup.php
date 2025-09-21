@@ -568,7 +568,7 @@ class Setup {
 			
 			// RSVP action classes.
 			'gatherpress--empty-rsvp'         => 'gatherpress--is-empty',
-			'gatherpress--update-rsvp'        => 'gatherpress--has-rsvp-update',
+			'gatherpress--update-rsvp'        => 'gatherpress-rsvp--trigger-update',
 		);
 
 		// Update post content for all post types that might contain GatherPress blocks.
