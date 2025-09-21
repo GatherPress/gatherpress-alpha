@@ -538,11 +538,9 @@ class Setup {
 		// Define class name mappings for safe replacement.
 		// Note: Order matters! More specific patterns should come first to avoid conflicts.
 		$class_mappings = array(
-			// Modal trigger classes (action-like to state-like).
-			// Handle combined classes first to avoid partial matches.
-			'is-style-outline gatherpress--close-modal' => 'is-style-outline gatherpress--has-modal-trigger',
-			'gatherpress--open-modal'        => 'gatherpress--has-modal-trigger',
-			'gatherpress--close-modal'       => 'gatherpress--has-modal-trigger',
+			// Modal trigger classes (action-like to component pattern).
+			'gatherpress--open-modal'        => 'gatherpress-modal--trigger-open',
+			'gatherpress--close-modal'       => 'gatherpress-modal--trigger-close',
 			
 			// Modal identifier classes (modifier to component pattern).
 			'gatherpress--is-rsvp-modal'     => 'gatherpress-modal--rsvp',
