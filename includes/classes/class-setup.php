@@ -543,8 +543,8 @@ class Setup {
 			'gatherpress--close-modal'       => 'gatherpress-modal--trigger-close',
 			
 			// Modal identifier classes (modifier to component pattern).
-			'gatherpress--is-rsvp-modal'     => 'gatherpress-modal--rsvp',
-			'gatherpress--is-login-modal'    => 'gatherpress-modal--login',
+			'gatherpress--is-rsvp-modal'     => 'gatherpress-modal--type-rsvp',
+			'gatherpress--is-login-modal'    => 'gatherpress-modal--type-login',
 			
 			// Visibility classes (negative to positive form).
 			'gatherpress--is-not-visible'    => 'gatherpress--is-hidden',
