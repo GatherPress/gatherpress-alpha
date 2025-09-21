@@ -549,17 +549,17 @@ class Setup {
 			// Visibility classes (negative to positive form).
 			'gatherpress--is-not-visible'    => 'gatherpress--is-hidden',
 			
-			// Field type classes (type-prefix to modifier pattern).
-			'gatherpress-field-type-checkbox' => 'gatherpress-field--checkbox',
-			'gatherpress-field-type-radio'    => 'gatherpress-field--radio',
-			'gatherpress-field-type-text'     => 'gatherpress-field--text',
-			'gatherpress-field-type-email'    => 'gatherpress-field--email',
-			'gatherpress-field-type-textarea' => 'gatherpress-field--textarea',
-			'gatherpress-field-type-number'   => 'gatherpress-field--number',
-			'gatherpress-field-type-url'      => 'gatherpress-field--url',
-			'gatherpress-field-type-tel'      => 'gatherpress-field--tel',
-			'gatherpress-field-type-select'   => 'gatherpress-field--select',
-			'gatherpress-field-type-hidden'   => 'gatherpress-field--hidden',
+			// Field type classes (type-prefix to component pattern).
+			'gatherpress-field-type-checkbox' => 'gatherpress-form-field--checkbox',
+			'gatherpress-field-type-radio'    => 'gatherpress-form-field--radio',
+			'gatherpress-field-type-text'     => 'gatherpress-form-field--text',
+			'gatherpress-field-type-email'    => 'gatherpress-form-field--email',
+			'gatherpress-field-type-textarea' => 'gatherpress-form-field--textarea',
+			'gatherpress-field-type-number'   => 'gatherpress-form-field--number',
+			'gatherpress-field-type-url'      => 'gatherpress-form-field--url',
+			'gatherpress-field-type-tel'      => 'gatherpress-form-field--tel',
+			'gatherpress-field-type-select'   => 'gatherpress-form-field--select',
+			'gatherpress-field-type-hidden'   => 'gatherpress-form-field--hidden',
 			
 			// RSVP state classes (action-like to state-like).
 			'gatherpress--rsvp-attending'     => 'gatherpress--is-attending',
