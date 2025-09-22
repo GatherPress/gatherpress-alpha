@@ -541,14 +541,14 @@ class Setup {
 			// Modal trigger classes (action-like to component pattern).
 			'gatherpress--open-modal'        => 'gatherpress-modal--trigger-open',
 			'gatherpress--close-modal'       => 'gatherpress-modal--trigger-close',
-			
+
 			// Modal identifier classes (modifier to component pattern).
 			'gatherpress--is-rsvp-modal'     => 'gatherpress-modal--type-rsvp',
 			'gatherpress--is-login-modal'    => 'gatherpress-modal--type-login',
-			
+
 			// Visibility classes (negative to positive form).
 			'gatherpress--is-not-visible'    => 'gatherpress--is-hidden',
-			
+
 			// Field type classes (type-prefix to component pattern).
 			'gatherpress-field-type-checkbox' => 'gatherpress-form-field--checkbox',
 			'gatherpress-field-type-radio'    => 'gatherpress-form-field--radio',
@@ -560,20 +560,20 @@ class Setup {
 			'gatherpress-field-type-tel'      => 'gatherpress-form-field--tel',
 			'gatherpress-field-type-select'   => 'gatherpress-form-field--select',
 			'gatherpress-field-type-hidden'   => 'gatherpress-form-field--hidden',
-			
+
 			// RSVP state classes (action-like to state-like).
 			'gatherpress--rsvp-attending'     => 'gatherpress--is-attending',
 			'gatherpress--rsvp-waiting-list'  => 'gatherpress--is-waiting-list',
 			'gatherpress--rsvp-not-attending' => 'gatherpress--is-not-attending',
-			
+
 			// RSVP action classes.
 			'gatherpress--empty-rsvp'         => 'gatherpress-rsvp-response--no-responses',
 			'gatherpress--update-rsvp'        => 'gatherpress-rsvp--trigger-update',
 		);
 
 		// Update post content for all post types that might contain GatherPress blocks.
-		$post_types = array( 'gatherpress_event', 'page', 'post' );
-		
+		$post_types = array( 'gatherpress_event', 'page', 'wp_template', 'wp_template_part' );
+
 		foreach ( $post_types as $post_type ) {
 			foreach ( $class_mappings as $old_class => $new_class ) {
 				// Only process exact class name matches to avoid partial replacements.
@@ -582,25 +582,25 @@ class Setup {
 					// Exact className attribute matches.
 					"className=\"{$old_class}\"" => "className=\"{$new_class}\"",
 					"className='{$old_class}'" => "className='{$new_class}'",
-					
+
 					// Class at start of className with space after.
 					"className=\"{$old_class} " => "className=\"{$new_class} ",
 					"className='{$old_class} " => "className='{$new_class} ",
-					
+
 					// Class at end of className with space before.
 					" {$old_class}\"" => " {$new_class}\"",
 					" {$old_class}'" => " {$new_class}'",
-					
+
 					// Class in middle with spaces on both sides.
 					" {$old_class} " => " {$new_class} ",
-					
+
 					// Same patterns for rendered HTML class attributes.
 					"class=\"{$old_class}\"" => "class=\"{$new_class}\"",
 					"class='{$old_class}'" => "class='{$new_class}'",
 					"class=\"{$old_class} " => "class=\"{$new_class} ",
 					"class='{$old_class} " => "class='{$new_class} ",
 				);
-				
+
 				foreach ( $exact_patterns as $old_pattern => $new_pattern ) {
 					$sql = $wpdb->prepare( "
 						UPDATE {$wpdb->posts}
@@ -608,7 +608,7 @@ class Setup {
 						WHERE post_type = %s
 						AND post_content LIKE %s
 					", $old_pattern, $new_pattern, $post_type, '%' . $old_pattern . '%' );
-					
+
 					$wpdb->query( $sql );
 				}
 			}
@@ -625,7 +625,7 @@ class Setup {
 				" {$old_class}'" => " {$new_class}'",
 				" {$old_class} " => " {$new_class} ",
 			);
-			
+
 			foreach ( $exact_patterns as $old_pattern => $new_pattern ) {
 				$sql = $wpdb->prepare( "
 					UPDATE {$wpdb->posts}
@@ -633,7 +633,7 @@ class Setup {
 					WHERE post_type = 'wp_block'
 					AND post_content LIKE %s
 				", $old_pattern, $new_pattern, '%' . $old_pattern . '%' );
-				
+
 				$wpdb->query( $sql );
 			}
 		}
