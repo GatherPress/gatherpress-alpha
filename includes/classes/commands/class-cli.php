@@ -52,5 +52,4 @@ class Cli extends WP_CLI {
 		$setup->fix();
 		WP_CLI::success( __( 'Fixes applied successfully.', 'gatherpress-alpha' ) );
 	}
-
 }
