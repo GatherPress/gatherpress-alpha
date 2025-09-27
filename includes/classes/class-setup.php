@@ -517,6 +517,9 @@ class Setup {
 			WHERE post_type = 'gatherpress_event'
 		", $add_to_calendar_template ) );
 
+		// Fix CSS class names that changed in 0.33.0.
+		$this->fix_css_class_names__0_33_0();
+
 		// Replace deprecated rsvp-guest-count-input block with form-field block (non-serialized).
 		// Match with or without attributes.
 		$guest_count_pattern     = '<!-- wp:gatherpress/rsvp-guest-count-input(?: \{[^}]*\})? /-->';
@@ -570,5 +573,117 @@ class Setup {
 		) );
 
 		delete_option( 'gatherpress_suppress_site_notification' );
+	}
+
+	/**
+	 * Fixes CSS class names that changed in 0.33.0 of the plugin.
+	 *
+	 * Updates stored block content in the database to use the new CSS class naming conventions.
+	 * This is necessary because block content is serialized and stored in the database,
+	 * so old class names would persist without this migration.
+	 *
+	 * @return void
+	 */
+	private function fix_css_class_names__0_33_0(): void {
+		global $wpdb;
+
+		// Define class name mappings for safe replacement.
+		// Note: Order matters! More specific patterns should come first to avoid conflicts.
+		$class_mappings = array(
+			// Modal trigger classes (action-like to component pattern).
+			'gatherpress--open-modal'        => 'gatherpress-modal--trigger-open',
+			'gatherpress--close-modal'       => 'gatherpress-modal--trigger-close',
+
+			// Modal identifier classes (modifier to component pattern).
+			'gatherpress--is-rsvp-modal'     => 'gatherpress-modal--type-rsvp',
+			'gatherpress--is-login-modal'    => 'gatherpress-modal--type-login',
+
+			// Visibility classes (negative to positive form).
+			'gatherpress--is-not-visible'    => 'gatherpress--is-hidden',
+
+			// Field type classes (type-prefix to component pattern).
+			'gatherpress-field-type-checkbox' => 'gatherpress-form-field--checkbox',
+			'gatherpress-field-type-radio'    => 'gatherpress-form-field--radio',
+			'gatherpress-field-type-text'     => 'gatherpress-form-field--text',
+			'gatherpress-field-type-email'    => 'gatherpress-form-field--email',
+			'gatherpress-field-type-textarea' => 'gatherpress-form-field--textarea',
+			'gatherpress-field-type-number'   => 'gatherpress-form-field--number',
+			'gatherpress-field-type-url'      => 'gatherpress-form-field--url',
+			'gatherpress-field-type-tel'      => 'gatherpress-form-field--tel',
+			'gatherpress-field-type-select'   => 'gatherpress-form-field--select',
+			'gatherpress-field-type-hidden'   => 'gatherpress-form-field--hidden',
+
+			// RSVP state classes (action-like to state-like).
+			'gatherpress--rsvp-attending'     => 'gatherpress--is-attending',
+			'gatherpress--rsvp-waiting-list'  => 'gatherpress--is-waiting-list',
+			'gatherpress--rsvp-not-attending' => 'gatherpress--is-not-attending',
+
+			// RSVP action classes.
+			'gatherpress--empty-rsvp'         => 'gatherpress-rsvp-response--no-responses',
+			'gatherpress--update-rsvp'        => 'gatherpress-rsvp--trigger-update',
+		);
+
+		// Update post content for all post types that might contain GatherPress blocks.
+		$post_types = array( 'gatherpress_event', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
+
+		// Build replacement patterns for each class mapping.
+		foreach ( $class_mappings as $old_class => $new_class ) {
+			$replacement_patterns = $this->build_class_replacement_patterns( $old_class, $new_class );
+
+			foreach ( $post_types as $post_type ) {
+				foreach ( $replacement_patterns as $old_pattern => $new_pattern ) {
+					$sql = $wpdb->prepare(
+						"UPDATE {$wpdb->posts}
+						SET post_content = REPLACE(post_content, %s, %s)
+						WHERE post_type = %s
+						AND post_content LIKE %s",
+						$old_pattern,
+						$new_pattern,
+						$post_type,
+						'%' . $wpdb->esc_like( $old_pattern ) . '%'
+					);
+
+					$wpdb->query( $sql );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Build replacement patterns for CSS class names.
+	 *
+	 * @param string $old_class The old class name to replace.
+	 * @param string $new_class The new class name to use.
+	 * @return array An associative array of old pattern => new pattern replacements.
+	 */
+	private function build_class_replacement_patterns( $old_class, $new_class ) {
+		$patterns = array();
+
+		// Based on exact patterns found in database content:
+		// className: \\\u0022className\\\u0022:\\\u0022gatherpress\u002d\u002dopen-modal\\\u0022
+		// div class: gatherpress\u002d\u002dopen-modal\\\u0022
+
+		// Pattern 1: className attribute in block comments within serializedInnerBlocks
+		// Format: gatherpress\u002d\u002dopen-modal
+		$old_escaped = str_replace( '--', '\\u002d\\u002d', $old_class );
+		$new_escaped = str_replace( '--', '\\u002d\\u002d', $new_class );
+		$patterns["\\\\\\u0022className\\\\\\u0022:\\\\\\u0022{$old_escaped}\\\\\\u0022"] =
+		          "\\\\\\u0022className\\\\\\u0022:\\\\\\u0022{$new_escaped}\\\\\\u0022";
+
+		// Pattern 2: div class in rendered HTML within serializedInnerBlocks
+		// Format: gatherpress\u002d\u002dopen-modal\\u0022 and gatherpress\u002d\u002dopen-modal\u0022  
+		$patterns["{$old_escaped}\\\\\\u0022"] = "{$new_escaped}\\\\\\u0022";
+		$patterns["{$old_escaped}\\u0022"] = "{$new_escaped}\\u0022";
+		$patterns[" {$old_escaped}\\\\\\u0022"] = " {$new_escaped}\\\\\\u0022";
+		$patterns[" {$old_escaped}\\u0022"] = " {$new_escaped}\\u0022";
+
+		// Pattern 3: Regular unescaped patterns for rendered content
+		$patterns["\"{$old_class}\""] = "\"{$new_class}\"";
+		$patterns["'{$old_class}'"] = "'{$new_class}'";
+		$patterns[" {$old_class} "] = " {$new_class} ";
+		$patterns[" {$old_class}\""] = " {$new_class}\"";
+		$patterns[" {$old_class}'"] = " {$new_class}'";
+
+		return $patterns;
 	}
 }
