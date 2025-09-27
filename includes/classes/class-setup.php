@@ -572,70 +572,66 @@ class Setup {
 		);
 
 		// Update post content for all post types that might contain GatherPress blocks.
-		$post_types = array( 'gatherpress_event', 'page', 'wp_template', 'wp_template_part' );
+		$post_types = array( 'gatherpress_event', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
 
-		foreach ( $post_types as $post_type ) {
-			foreach ( $class_mappings as $old_class => $new_class ) {
-				// Only process exact class name matches to avoid partial replacements.
-				// This approach is safer for database content migration.
-				$exact_patterns = array(
-					// Exact className attribute matches.
-					"className=\"{$old_class}\"" => "className=\"{$new_class}\"",
-					"className='{$old_class}'" => "className='{$new_class}'",
+		// Build replacement patterns for each class mapping.
+		foreach ( $class_mappings as $old_class => $new_class ) {
+			$replacement_patterns = $this->build_class_replacement_patterns( $old_class, $new_class );
 
-					// Class at start of className with space after.
-					"className=\"{$old_class} " => "className=\"{$new_class} ",
-					"className='{$old_class} " => "className='{$new_class} ",
-
-					// Class at end of className with space before.
-					" {$old_class}\"" => " {$new_class}\"",
-					" {$old_class}'" => " {$new_class}'",
-
-					// Class in middle with spaces on both sides.
-					" {$old_class} " => " {$new_class} ",
-
-					// Same patterns for rendered HTML class attributes.
-					"class=\"{$old_class}\"" => "class=\"{$new_class}\"",
-					"class='{$old_class}'" => "class='{$new_class}'",
-					"class=\"{$old_class} " => "class=\"{$new_class} ",
-					"class='{$old_class} " => "class='{$new_class} ",
-				);
-
-				foreach ( $exact_patterns as $old_pattern => $new_pattern ) {
-					$sql = $wpdb->prepare( "
-						UPDATE {$wpdb->posts}
+			foreach ( $post_types as $post_type ) {
+				foreach ( $replacement_patterns as $old_pattern => $new_pattern ) {
+					$sql = $wpdb->prepare(
+						"UPDATE {$wpdb->posts}
 						SET post_content = REPLACE(post_content, %s, %s)
 						WHERE post_type = %s
-						AND post_content LIKE %s
-					", $old_pattern, $new_pattern, $post_type, '%' . $old_pattern . '%' );
+						AND post_content LIKE %s",
+						$old_pattern,
+						$new_pattern,
+						$post_type,
+						'%' . $wpdb->esc_like( $old_pattern ) . '%'
+					);
 
 					$wpdb->query( $sql );
 				}
 			}
 		}
+	}
 
-		// Also update any saved block patterns or reusable blocks.
-		foreach ( $class_mappings as $old_class => $new_class ) {
-			$exact_patterns = array(
-				"className=\"{$old_class}\"" => "className=\"{$new_class}\"",
-				"className='{$old_class}'" => "className='{$new_class}'",
-				"className=\"{$old_class} " => "className=\"{$new_class} ",
-				"className='{$old_class} " => "className='{$new_class} ",
-				" {$old_class}\"" => " {$new_class}\"",
-				" {$old_class}'" => " {$new_class}'",
-				" {$old_class} " => " {$new_class} ",
-			);
+	/**
+	 * Build replacement patterns for CSS class names.
+	 *
+	 * @param string $old_class The old class name to replace.
+	 * @param string $new_class The new class name to use.
+	 * @return array An associative array of old pattern => new pattern replacements.
+	 */
+	private function build_class_replacement_patterns( $old_class, $new_class ) {
+		$patterns = array();
 
-			foreach ( $exact_patterns as $old_pattern => $new_pattern ) {
-				$sql = $wpdb->prepare( "
-					UPDATE {$wpdb->posts}
-					SET post_content = REPLACE(post_content, %s, %s)
-					WHERE post_type = 'wp_block'
-					AND post_content LIKE %s
-				", $old_pattern, $new_pattern, '%' . $old_pattern . '%' );
+		// Based on exact patterns found in database content:
+		// className: \\\u0022className\\\u0022:\\\u0022gatherpress\u002d\u002dopen-modal\\\u0022
+		// div class: gatherpress\u002d\u002dopen-modal\\\u0022
 
-				$wpdb->query( $sql );
-			}
-		}
+		// Pattern 1: className attribute in block comments within serializedInnerBlocks
+		// Format: gatherpress\u002d\u002dopen-modal
+		$old_escaped = str_replace( '--', '\\u002d\\u002d', $old_class );
+		$new_escaped = str_replace( '--', '\\u002d\\u002d', $new_class );
+		$patterns["\\\\\\u0022className\\\\\\u0022:\\\\\\u0022{$old_escaped}\\\\\\u0022"] =
+		          "\\\\\\u0022className\\\\\\u0022:\\\\\\u0022{$new_escaped}\\\\\\u0022";
+
+		// Pattern 2: div class in rendered HTML within serializedInnerBlocks
+		// Format: gatherpress\u002d\u002dopen-modal\\u0022 and gatherpress\u002d\u002dopen-modal\u0022  
+		$patterns["{$old_escaped}\\\\\\u0022"] = "{$new_escaped}\\\\\\u0022";
+		$patterns["{$old_escaped}\\u0022"] = "{$new_escaped}\\u0022";
+		$patterns[" {$old_escaped}\\\\\\u0022"] = " {$new_escaped}\\\\\\u0022";
+		$patterns[" {$old_escaped}\\u0022"] = " {$new_escaped}\\u0022";
+
+		// Pattern 3: Regular unescaped patterns for rendered content
+		$patterns["\"{$old_class}\""] = "\"{$new_class}\"";
+		$patterns["'{$old_class}'"] = "'{$new_class}'";
+		$patterns[" {$old_class} "] = " {$new_class} ";
+		$patterns[" {$old_class}\""] = " {$new_class}\"";
+		$patterns[" {$old_class}'"] = " {$new_class}'";
+
+		return $patterns;
 	}
 }
