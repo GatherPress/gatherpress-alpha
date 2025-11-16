@@ -134,6 +134,72 @@ class Setup {
 	}
 
 	/**
+	 * Extracts the base version from a version string with unstable suffix.
+	 *
+	 * For example: "0.33.0-alpha.1" becomes "0.33.0"
+	 *              "0.33.0-beta.2" becomes "0.33.0"
+	 *              "0.33.0-rc.1" becomes "0.33.0"
+	 *
+	 * @param string $version The version string to parse.
+	 * @return string The base version without unstable suffix.
+	 */
+	private function get_base_version( string $version ): string {
+		// If version contains a hyphen, extract the base version before it.
+		if ( strpos( $version, '-' ) !== false ) {
+			return substr( $version, 0, strpos( $version, '-' ) );
+		}
+
+		return $version;
+	}
+
+	/**
+	 * Gets the last version of the plugin that ran fixes.
+	 *
+	 * @return string|null The last version that ran, or null if never run.
+	 */
+	private function get_last_run_version(): ?string {
+		return get_option( 'gatherpress_alpha_last_version', null );
+	}
+
+	/**
+	 * Sets the last version of the plugin that ran fixes.
+	 *
+	 * @param string $version The version to store.
+	 * @return void
+	 */
+	private function set_last_run_version( string $version ): void {
+		update_option( 'gatherpress_alpha_last_version', $version );
+	}
+
+	/**
+	 * Checks if a fix version should be run based on the last run version.
+	 *
+	 * @param string      $fix_version  The version of the fix to check (e.g., "0.29.0").
+	 * @param string|null $last_version The last version that ran, or null if never run.
+	 * @return bool True if the fix should run, false otherwise.
+	 */
+	private function should_run_fix( string $fix_version, ?string $last_version ): bool {
+		// If no version has been stored, run all fixes.
+		if ( null === $last_version ) {
+			return true;
+		}
+
+		// Extract base version from last run version (remove unstable suffix).
+		$last_base_version = $this->get_base_version( $last_version );
+
+		// Check if the last version was an unstable release (contains a hyphen).
+		$is_unstable = strpos( $last_version, '-' ) !== false;
+
+		// If it was an unstable release, run fixes >= base version (e.g., 0.33.0-alpha.1 should run 0.33.0).
+		// If it was stable, only run fixes > base version.
+		if ( $is_unstable ) {
+			return version_compare( $fix_version, $last_base_version, '>=' );
+		}
+
+		return version_compare( $fix_version, $last_base_version, '>' );
+	}
+
+	/**
 	 * Applies fixes specific to different versions of the plugin.
 	 *
 	 * This method calls version-specific fix methods to ensure compatibility
@@ -142,6 +208,8 @@ class Setup {
 	 * - For multisite: the user must have the 'manage_network' capability.
 	 * - For single site: the user must have the 'manage_options' capability.
 	 * - If run via WP CLI, permission checks are bypassed.
+	 *
+	 * Only runs fixes for versions newer than the last recorded version.
 	 *
 	 * @return void
 	 */
@@ -155,23 +223,47 @@ class Setup {
 			foreach ( $sites as $site ) {
 				switch_to_blog( $site->blog_id );
 
-				$this->fix__0_29_0();
-				$this->fix__0_30_0();
-				$this->fix__0_31_0();
-				$this->fix__0_32_0();
-				$this->fix__0_33_0();
+				$this->run_fixes();
 
 				restore_current_blog();
 			}
 		} elseif ( $is_cli || current_user_can( 'manage_options' ) ) {
-			$this->fix__0_29_0();
-			$this->fix__0_30_0();
-			$this->fix__0_31_0();
-			$this->fix__0_32_0();
-			$this->fix__0_33_0();
+			$this->run_fixes();
 		} else {
 			wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 		}
+	}
+
+	/**
+	 * Runs version-specific fixes based on the last recorded version.
+	 *
+	 * @return void
+	 */
+	private function run_fixes(): void {
+		$last_version = $this->get_last_run_version();
+
+		if ( $this->should_run_fix( '0.29.0', $last_version ) ) {
+			$this->fix__0_29_0();
+		}
+
+		if ( $this->should_run_fix( '0.30.0', $last_version ) ) {
+			$this->fix__0_30_0();
+		}
+
+		if ( $this->should_run_fix( '0.31.0', $last_version ) ) {
+			$this->fix__0_31_0();
+		}
+
+		if ( $this->should_run_fix( '0.32.0', $last_version ) ) {
+			$this->fix__0_32_0();
+		}
+
+		if ( $this->should_run_fix( '0.33.0', $last_version ) ) {
+			$this->fix__0_33_0();
+		}
+
+		// Update the stored version to current plugin version.
+		$this->set_last_run_version( GATHERPRESS_ALPHA_VERSION );
 	}
 
 	/**
