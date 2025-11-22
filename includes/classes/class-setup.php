@@ -665,6 +665,7 @@ class Setup {
 		) );
 
 		delete_option( 'gatherpress_suppress_site_notification' );
+		delete_option( 'gatherpress_flush_rewrite_rules_flag' );
 	}
 
 	/**
@@ -763,7 +764,7 @@ class Setup {
 		          "\\\\\\u0022className\\\\\\u0022:\\\\\\u0022{$new_escaped}\\\\\\u0022";
 
 		// Pattern 2: div class in rendered HTML within serializedInnerBlocks
-		// Format: gatherpress\u002d\u002dopen-modal\\u0022 and gatherpress\u002d\u002dopen-modal\u0022  
+		// Format: gatherpress\u002d\u002dopen-modal\\u0022 and gatherpress\u002d\u002dopen-modal\u0022
 		$patterns["{$old_escaped}\\\\\\u0022"] = "{$new_escaped}\\\\\\u0022";
 		$patterns["{$old_escaped}\\u0022"] = "{$new_escaped}\\u0022";
 		$patterns[" {$old_escaped}\\\\\\u0022"] = " {$new_escaped}\\\\\\u0022";
