@@ -62,6 +62,7 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 	<p><strong><?php esc_html_e( 'Settings Changes:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul style="margin-left: 20px;">
 		<li><?php esc_html_e( 'Removed deprecated site notification suppression option', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Removed deprecated rewrite rules flush flag option', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
 	<p style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px; margin-top: 12px;">
