@@ -612,57 +612,8 @@ class Setup {
 		// Fix CSS class names that changed in 0.33.0.
 		$this->fix_css_class_names__0_33_0();
 
-		// Replace deprecated rsvp-guest-count-input block with form-field block (non-serialized).
-		// Match with or without attributes.
-		$guest_count_pattern     = '<!-- wp:gatherpress/rsvp-guest-count-input(?: \{[^}]*\})? /-->';
-		$guest_count_replacement = '<!-- wp:gatherpress/form-field {"className":"gatherpress-rsvp-field-guests","fieldType":"number","fieldName":"gatherpress_rsvp_guests","label":"Number of guests?","placeholder":"0","minValue":0,"inlineLayout":true,"fieldWidth":10,"inputPadding":5,"autocomplete":"off"} /-->';
-
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE {$wpdb->posts}
-			SET post_content = REGEXP_REPLACE(post_content, %s, %s)
-			WHERE post_type = 'gatherpress_event'",
-			$guest_count_pattern,
-			$guest_count_replacement
-		) );
-
-		// Replace deprecated rsvp-anonymous-checkbox block with form-field block (non-serialized).
-		// Match with or without attributes.
-		$anon_pattern     = '<!-- wp:gatherpress/rsvp-anonymous-checkbox(?: \{[^}]*\})? /-->';
-		$anon_replacement = '<!-- wp:gatherpress/form-field {"className":"gatherpress-rsvp-field-anonymous","fieldType":"checkbox","fieldName":"gatherpress_rsvp_anonymous","label":"List me as anonymous.","autocomplete":"off"} /-->';
-
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE {$wpdb->posts}
-			SET post_content = REGEXP_REPLACE(post_content, %s, %s)
-			WHERE post_type = 'gatherpress_event'",
-			$anon_pattern,
-			$anon_replacement
-		) );
-
-		// Replace deprecated rsvp-guest-count-input block with form-field block (JSON-escaped serialized).
-		// Matches with or without attributes in the stored JSON-escaped block comment.
-		$guest_count_pattern = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/rsvp-guest-count-input(?: [^/]*?)?/\\\\u002d\\\\u002d\\\\u003e';
-		$guest_count_replace = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/form-field {\\\\\\\\u0022className\\\\\\\\u0022:\\\\\\\\u0022gatherpress-rsvp-field-guests\\\\\\\\u0022,\\\\\\\\u0022fieldType\\\\\\\\u0022:\\\\\\\\u0022number\\\\\\\\u0022,\\\\\\\\u0022fieldName\\\\\\\\u0022:\\\\\\\\u0022gatherpress_rsvp_guests\\\\\\\\u0022,\\\\\\\\u0022label\\\\\\\\u0022:\\\\\\\\u0022Number of guests?\\\\\\\\u0022,\\\\\\\\u0022placeholder\\\\\\\\u0022:\\\\\\\\u00220\\\\\\\\u0022,\\\\\\\\u0022minValue\\\\\\\\u0022:0,\\\\\\\\u0022inlineLayout\\\\\\\\u0022:true,\\\\\\\\u0022fieldWidth\\\\\\\\u0022:10,\\\\\\\\u0022inputPadding\\\\\\\\u0022:5,\\\\\\\\u0022autocomplete\\\\\\\\u0022:\\\\\\\\u0022off\\\\\\\\u0022} /\\\\u002d\\\\u002d\\\\u003e';
-
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE {$wpdb->posts}
-			SET post_content = REGEXP_REPLACE(post_content, %s, %s)
-			WHERE post_type = 'gatherpress_event'",
-			$guest_count_pattern,
-			$guest_count_replace
-		) );
-
-		// Replace deprecated rsvp-anonymous-checkbox block with form-field block (JSON-escaped serialized).
-		// Matches with or without attributes in the stored JSON-escaped block comment.
-		$anon_pattern = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/rsvp-anonymous-checkbox(?: [^/]*?)?/\\\\u002d\\\\u002d\\\\u003e';
-		$anon_replace = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/form-field {\\\\\\\\u0022className\\\\\\\\u0022:\\\\\\\\u0022gatherpress-rsvp-field-anonymous\\\\\\\\u0022,\\\\\\\\u0022fieldType\\\\\\\\u0022:\\\\\\\\u0022checkbox\\\\\\\\u0022,\\\\\\\\u0022fieldName\\\\\\\\u0022:\\\\\\\\u0022gatherpress_rsvp_anonymous\\\\\\\\u0022,\\\\\\\\u0022label\\\\\\\\u0022:\\\\\\\\u0022List me as anonymous.\\\\\\\\u0022,\\\\\\\\u0022autocomplete\\\\\\\\u0022:\\\\\\\\u0022off\\\\\\\\u0022} /\\\\u002d\\\\u002d\\\\u003e';
-
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE {$wpdb->posts}
-			SET post_content = REGEXP_REPLACE(post_content, %s, %s)
-			WHERE post_type = 'gatherpress_event'",
-			$anon_pattern,
-			$anon_replace
-		) );
+		// Replace deprecated blocks using parse/serialize approach (same as class name replacements).
+		$this->replace_deprecated_blocks();
 
 		delete_option( 'gatherpress_suppress_site_notification' );
 		delete_option( 'gatherpress_flush_rewrite_rules_flag' );
@@ -937,6 +888,169 @@ class Setup {
 			// Recursively process inner blocks.
 			if ( ! empty( $block['innerBlocks'] ) ) {
 				$block['innerBlocks'] = $this->update_class_names_in_blocks( $block['innerBlocks'], $class_mappings, $updated );
+			}
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Replace deprecated blocks with new block configurations.
+	 *
+	 * Replaces old blocks (rsvp-guest-count-input, rsvp-anonymous-checkbox)
+	 * with the new form-field block using parse/serialize approach.
+	 *
+	 * @return void
+	 */
+	private function replace_deprecated_blocks(): void {
+		global $wpdb;
+
+		// Find posts that might have the old blocks.
+		$posts = $wpdb->get_results(
+			"SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_type = 'gatherpress_event'
+			AND (post_content LIKE '%rsvp-guest-count-input%' OR post_content LIKE '%rsvp-anonymous-checkbox%')"
+		);
+
+		foreach ( $posts as $post ) {
+			$content = $post->post_content;
+			$updated = false;
+
+			// Parse the post content as blocks.
+			$blocks = parse_blocks( $content );
+
+			// Recursively process blocks to replace deprecated ones.
+			$updated_blocks = $this->replace_blocks_recursive( $blocks, $updated );
+
+			if ( $updated ) {
+				// Re-serialize and save.
+				$new_content = serialize_blocks( $updated_blocks );
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => $new_content ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Recursively replace deprecated blocks in blocks array and serializedInnerBlocks.
+	 *
+	 * @param array $blocks  Array of block data.
+	 * @param bool  $updated Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_blocks_recursive( array $blocks, bool &$updated ): array {
+		foreach ( $blocks as &$block ) {
+			// Replace deprecated blocks.
+			if ( 'gatherpress/rsvp-guest-count-input' === $block['blockName'] ) {
+				$block['blockName'] = 'gatherpress/form-field';
+				$block['attrs'] = array(
+					'className'     => 'gatherpress-rsvp-field-guests',
+					'fieldType'     => 'number',
+					'fieldName'     => 'gatherpress_rsvp_guests',
+					'label'         => 'Number of guests?',
+					'placeholder'   => '0',
+					'minValue'      => 0,
+					'inlineLayout'  => true,
+					'fieldWidth'    => 10,
+					'inputPadding'  => 5,
+					'autocomplete'  => 'off',
+				);
+				$updated = true;
+			} elseif ( 'gatherpress/rsvp-anonymous-checkbox' === $block['blockName'] ) {
+				$block['blockName'] = 'gatherpress/form-field';
+				$block['attrs'] = array(
+					'className'    => 'gatherpress-rsvp-field-anonymous',
+					'fieldType'    => 'checkbox',
+					'fieldName'    => 'gatherpress_rsvp_anonymous',
+					'label'        => 'List me as anonymous.',
+					'autocomplete' => 'off',
+				);
+				$updated = true;
+			}
+
+			// Process RSVP blocks with serializedInnerBlocks (same pattern as class name replacement).
+			if ( 'gatherpress/rsvp' === $block['blockName'] && ! empty( $block['attrs']['serializedInnerBlocks'] ) ) {
+				$serialized_data = $block['attrs']['serializedInnerBlocks'];
+				$inner_blocks_data = json_decode( $serialized_data, true );
+
+				if ( is_array( $inner_blocks_data ) ) {
+					$data_updated = false;
+
+					foreach ( $inner_blocks_data as $status => $serialized_blocks ) {
+						// Parse the serialized blocks.
+						$status_blocks = parse_blocks( $serialized_blocks );
+
+						// Replace deprecated blocks in these blocks.
+						$updated_status_blocks = $this->replace_blocks_in_inner( $status_blocks, $data_updated );
+
+						if ( $data_updated ) {
+							// Re-serialize the updated blocks.
+							$inner_blocks_data[ $status ] = serialize_blocks( $updated_status_blocks );
+							$updated = true;
+						}
+					}
+
+					if ( $data_updated ) {
+						// Update the serializedInnerBlocks attribute.
+						$block['attrs']['serializedInnerBlocks'] = wp_json_encode( $inner_blocks_data );
+					}
+				}
+			}
+
+			// Recursively process inner blocks.
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$block['innerBlocks'] = $this->replace_blocks_recursive( $block['innerBlocks'], $updated );
+			}
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Replace deprecated blocks in inner blocks array (for serializedInnerBlocks).
+	 *
+	 * @param array $blocks  Array of block data.
+	 * @param bool  $updated Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_blocks_in_inner( array $blocks, bool &$updated ): array {
+		foreach ( $blocks as &$block ) {
+			// Replace deprecated blocks.
+			if ( 'gatherpress/rsvp-guest-count-input' === $block['blockName'] ) {
+				$block['blockName'] = 'gatherpress/form-field';
+				$block['attrs'] = array(
+					'className'     => 'gatherpress-rsvp-field-guests',
+					'fieldType'     => 'number',
+					'fieldName'     => 'gatherpress_rsvp_guests',
+					'label'         => 'Number of guests?',
+					'placeholder'   => '0',
+					'minValue'      => 0,
+					'inlineLayout'  => true,
+					'fieldWidth'    => 10,
+					'inputPadding'  => 5,
+					'autocomplete'  => 'off',
+				);
+				$updated = true;
+			} elseif ( 'gatherpress/rsvp-anonymous-checkbox' === $block['blockName'] ) {
+				$block['blockName'] = 'gatherpress/form-field';
+				$block['attrs'] = array(
+					'className'    => 'gatherpress-rsvp-field-anonymous',
+					'fieldType'    => 'checkbox',
+					'fieldName'    => 'gatherpress_rsvp_anonymous',
+					'label'        => 'List me as anonymous.',
+					'autocomplete' => 'off',
+				);
+				$updated = true;
+			}
+
+			// Recursively process inner blocks.
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$block['innerBlocks'] = $this->replace_blocks_in_inner( $block['innerBlocks'], $updated );
 			}
 		}
 
