@@ -665,6 +665,7 @@ class Setup {
 		) );
 
 		delete_option( 'gatherpress_suppress_site_notification' );
+		delete_option( 'gatherpress_flush_rewrite_rules_flag' );
 	}
 
 	/**
