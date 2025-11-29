@@ -679,6 +679,7 @@ class Setup {
 	private function fix_css_class_names__0_33_0(): void {
 		global $wpdb;
 
+
 		// Define class name mappings for safe replacement.
 		// Note: Order matters! More specific patterns should come first to avoid conflicts.
 		$class_mappings = array(
@@ -718,12 +719,17 @@ class Setup {
 		// Update post content for all post types that might contain GatherPress blocks.
 		$post_types = array( 'gatherpress_event', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
 
-		// Build replacement patterns for each class mapping.
+		// First, handle regular content with string replacement
 		foreach ( $class_mappings as $old_class => $new_class ) {
 			$replacement_patterns = $this->build_class_replacement_patterns( $old_class, $new_class );
 
 			foreach ( $post_types as $post_type ) {
 				foreach ( $replacement_patterns as $old_pattern => $new_pattern ) {
+					// Skip serialized patterns - we'll handle those separately
+					if ( false !== strpos( $old_pattern, 'u002d' ) ) {
+						continue;
+					}
+
 					$sql = $wpdb->prepare(
 						"UPDATE {$wpdb->posts}
 						SET post_content = REPLACE(post_content, %s, %s)
@@ -739,6 +745,9 @@ class Setup {
 				}
 			}
 		}
+
+		// Now handle serializedInnerBlocks using proper WordPress functions
+		$this->fix_serialized_inner_blocks( $class_mappings );
 	}
 
 	/**
@@ -769,7 +778,10 @@ class Setup {
 		$patterns[" {$old_escaped}\\\\\\u0022"] = " {$new_escaped}\\\\\\u0022";
 		$patterns[" {$old_escaped}\\u0022"] = " {$new_escaped}\\u0022";
 
-		// Pattern 3: Regular unescaped patterns for rendered content
+		// Pattern 3: serializedInnerBlocks will be handled separately with proper WordPress functions
+		// No need for complex string replacement patterns here
+
+		// Pattern 4: Regular unescaped patterns for rendered content
 		$patterns["\"{$old_class}\""] = "\"{$new_class}\"";
 		$patterns["'{$old_class}'"] = "'{$new_class}'";
 		$patterns[" {$old_class} "] = " {$new_class} ";
@@ -777,5 +789,156 @@ class Setup {
 		$patterns[" {$old_class}'"] = " {$new_class}'";
 
 		return $patterns;
+	}
+
+	/**
+	 * Fix class names in serialized inner blocks using WordPress functions.
+	 *
+	 * This method properly deserializes the inner blocks data, performs
+	 * class name replacements on the actual PHP data structures, then
+	 * re-serializes and saves the updated data.
+	 *
+	 * @param array $class_mappings Array of old_class => new_class mappings.
+	 * @return void
+	 */
+	private function fix_serialized_inner_blocks( array $class_mappings ): void {
+		global $wpdb;
+
+		// Find posts with serializedInnerBlocks.
+		$posts = $wpdb->get_results(
+			"SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_content LIKE '%serializedInnerBlocks%'
+			AND post_content LIKE '%gatherpress%'"
+		);
+
+		foreach ( $posts as $post ) {
+			$content = $post->post_content;
+			$updated = false;
+
+			// Parse the post content as blocks.
+			$blocks = parse_blocks( $content );
+
+			// Recursively process blocks to find RSVP blocks.
+			$updated_blocks = $this->update_rsvp_blocks_recursive( $blocks, $class_mappings, $updated );
+
+			if ( $updated ) {
+				// Re-serialize and save.
+				$new_content = serialize_blocks( $updated_blocks );
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => $new_content ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Recursively update RSVP blocks and their serialized inner blocks.
+	 *
+	 * @param array $blocks Array of block data.
+	 * @param array $class_mappings Array of old_class => new_class mappings.
+	 * @param bool  $updated Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function update_rsvp_blocks_recursive( array $blocks, array $class_mappings, bool &$updated ): array {
+		foreach ( $blocks as &$block ) {
+			// Process RSVP blocks with serializedInnerBlocks.
+			if ( 'gatherpress/rsvp' === $block['blockName'] && ! empty( $block['attrs']['serializedInnerBlocks'] ) ) {
+				$serialized_data = $block['attrs']['serializedInnerBlocks'];
+				$original_data = $serialized_data;
+
+				// CRITICAL: Replace OLD class names in the raw JSON string BEFORE parsing.
+				// The issue is that the HTML content in the JSON has old class names,
+				// even though the block attributes may have new ones.
+				foreach ( $class_mappings as $old_class => $new_class ) {
+					// Replace unescaped versions (in HTML content).
+					$serialized_data = str_replace( $old_class, $new_class, $serialized_data );
+
+					// Also replace escaped versions (in block attributes).
+					$old_escaped = str_replace( '-', '\\u002d', $old_class );
+					$new_escaped = str_replace( '-', '\\u002d', $new_class );
+					$serialized_data = str_replace( $old_escaped, $new_escaped, $serialized_data );
+				}
+
+				// If we made replacements on the raw JSON string, save it back.
+				if ( $serialized_data !== $original_data ) {
+					$block['attrs']['serializedInnerBlocks'] = $serialized_data;
+					$updated = true;
+				}
+
+				// LEGACY: Also process via parse/serialize for block attribute updates.
+				// (keeping this for backwards compatibility, though raw replacement should handle most cases).
+				$inner_blocks_data = json_decode( $serialized_data, true );
+
+				if ( is_array( $inner_blocks_data ) ) {
+					$data_updated = false;
+
+					foreach ( $inner_blocks_data as $status => $serialized_blocks ) {
+						// Parse the serialized blocks.
+						$status_blocks = parse_blocks( $serialized_blocks );
+
+						// Update class names in these blocks (this handles edge cases).
+						$updated_status_blocks = $this->update_class_names_in_blocks( $status_blocks, $class_mappings, $data_updated );
+
+						if ( $data_updated ) {
+							// Re-serialize the updated blocks.
+							$inner_blocks_data[ $status ] = serialize_blocks( $updated_status_blocks );
+							$updated = true;
+						}
+					}
+
+					if ( $data_updated ) {
+						// Update the serializedInnerBlocks attribute.
+						$block['attrs']['serializedInnerBlocks'] = wp_json_encode( $inner_blocks_data );
+					}
+				}
+			}
+
+			// Recursively process inner blocks.
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$block['innerBlocks'] = $this->update_rsvp_blocks_recursive( $block['innerBlocks'], $class_mappings, $updated );
+			}
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Update class names in blocks array.
+	 *
+	 * @param array $blocks Array of block data.
+	 * @param array $class_mappings Array of old_class => new_class mappings.
+	 * @param bool  $updated Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function update_class_names_in_blocks( array $blocks, array $class_mappings, bool &$updated ): array {
+		foreach ( $blocks as &$block ) {
+			// Update className attribute.
+			if ( ! empty( $block['attrs']['className'] ) ) {
+				$old_class = $block['attrs']['className'];
+				$new_class = $old_class;
+
+				foreach ( $class_mappings as $old => $new ) {
+					if ( strpos( $new_class, $old ) !== false ) {
+						$new_class = str_replace( $old, $new, $new_class );
+					}
+				}
+
+				if ( $new_class !== $old_class ) {
+					$block['attrs']['className'] = $new_class;
+					$updated = true;
+				}
+			}
+
+			// Recursively process inner blocks.
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$block['innerBlocks'] = $this->update_class_names_in_blocks( $block['innerBlocks'], $class_mappings, $updated );
+			}
+		}
+
+		return $blocks;
 	}
 }
