@@ -615,7 +615,7 @@ class Setup {
 		// Replace deprecated rsvp-guest-count-input block with form-field block (non-serialized).
 		// Match with or without attributes.
 		$guest_count_pattern     = '<!-- wp:gatherpress/rsvp-guest-count-input(?: \{[^}]*\})? /-->';
-		$guest_count_replacement = '<!-- wp:gatherpress/form-field {"fieldType":"number","fieldName":"gatherpress_rsvp_guest_count","label":"Number of guests?","placeholder":"0","minValue":0,"inlineLayout":true,"fieldWidth":10,"inputPadding":5,"autocomplete":"off"} /-->';
+		$guest_count_replacement = '<!-- wp:gatherpress/form-field {"className":"gatherpress-rsvp-field-guests","fieldType":"number","fieldName":"gatherpress_rsvp_guests","label":"Number of guests?","placeholder":"0","minValue":0,"inlineLayout":true,"fieldWidth":10,"inputPadding":5,"autocomplete":"off"} /-->';
 
 		$wpdb->query( $wpdb->prepare(
 			"UPDATE {$wpdb->posts}
@@ -628,7 +628,7 @@ class Setup {
 		// Replace deprecated rsvp-anonymous-checkbox block with form-field block (non-serialized).
 		// Match with or without attributes.
 		$anon_pattern     = '<!-- wp:gatherpress/rsvp-anonymous-checkbox(?: \{[^}]*\})? /-->';
-		$anon_replacement = '<!-- wp:gatherpress/form-field {"fieldType":"checkbox","fieldName":"gatherpress_rsvp_anonymous","label":"List me as anonymous.","autocomplete":"off"} /-->';
+		$anon_replacement = '<!-- wp:gatherpress/form-field {"className":"gatherpress-rsvp-field-anonymous","fieldType":"checkbox","fieldName":"gatherpress_rsvp_anonymous","label":"List me as anonymous.","autocomplete":"off"} /-->';
 
 		$wpdb->query( $wpdb->prepare(
 			"UPDATE {$wpdb->posts}
@@ -641,7 +641,7 @@ class Setup {
 		// Replace deprecated rsvp-guest-count-input block with form-field block (JSON-escaped serialized).
 		// Matches with or without attributes in the stored JSON-escaped block comment.
 		$guest_count_pattern = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/rsvp-guest-count-input(?: [^/]*?)?/\\\\u002d\\\\u002d\\\\u003e';
-		$guest_count_replace = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/form-field {\\\\\\\\u0022fieldType\\\\\\\\u0022:\\\\\\\\u0022number\\\\\\\\u0022,\\\\\\\\u0022fieldName\\\\\\\\u0022:\\\\\\\\u0022gatherpress_rsvp_guest_count\\\\\\\\u0022,\\\\\\\\u0022label\\\\\\\\u0022:\\\\\\\\u0022Number of guests?\\\\\\\\u0022,\\\\\\\\u0022placeholder\\\\\\\\u0022:\\\\\\\\u00220\\\\\\\\u0022,\\\\\\\\u0022minValue\\\\\\\\u0022:0,\\\\\\\\u0022inlineLayout\\\\\\\\u0022:true,\\\\\\\\u0022fieldWidth\\\\\\\\u0022:10,\\\\\\\\u0022inputPadding\\\\\\\\u0022:5,\\\\\\\\u0022autocomplete\\\\\\\\u0022:\\\\\\\\u0022off\\\\\\\\u0022} /\\\\u002d\\\\u002d\\\\u003e';
+		$guest_count_replace = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/form-field {\\\\\\\\u0022className\\\\\\\\u0022:\\\\\\\\u0022gatherpress-rsvp-field-guests\\\\\\\\u0022,\\\\\\\\u0022fieldType\\\\\\\\u0022:\\\\\\\\u0022number\\\\\\\\u0022,\\\\\\\\u0022fieldName\\\\\\\\u0022:\\\\\\\\u0022gatherpress_rsvp_guests\\\\\\\\u0022,\\\\\\\\u0022label\\\\\\\\u0022:\\\\\\\\u0022Number of guests?\\\\\\\\u0022,\\\\\\\\u0022placeholder\\\\\\\\u0022:\\\\\\\\u00220\\\\\\\\u0022,\\\\\\\\u0022minValue\\\\\\\\u0022:0,\\\\\\\\u0022inlineLayout\\\\\\\\u0022:true,\\\\\\\\u0022fieldWidth\\\\\\\\u0022:10,\\\\\\\\u0022inputPadding\\\\\\\\u0022:5,\\\\\\\\u0022autocomplete\\\\\\\\u0022:\\\\\\\\u0022off\\\\\\\\u0022} /\\\\u002d\\\\u002d\\\\u003e';
 
 		$wpdb->query( $wpdb->prepare(
 			"UPDATE {$wpdb->posts}
@@ -654,7 +654,7 @@ class Setup {
 		// Replace deprecated rsvp-anonymous-checkbox block with form-field block (JSON-escaped serialized).
 		// Matches with or without attributes in the stored JSON-escaped block comment.
 		$anon_pattern = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/rsvp-anonymous-checkbox(?: [^/]*?)?/\\\\u002d\\\\u002d\\\\u003e';
-		$anon_replace = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/form-field {\\\\\\\\u0022fieldType\\\\\\\\u0022:\\\\\\\\u0022checkbox\\\\\\\\u0022,\\\\\\\\u0022fieldName\\\\\\\\u0022:\\\\\\\\u0022gatherpress_rsvp_anonymous\\\\\\\\u0022,\\\\\\\\u0022label\\\\\\\\u0022:\\\\\\\\u0022List me as anonymous.\\\\\\\\u0022,\\\\\\\\u0022autocomplete\\\\\\\\u0022:\\\\\\\\u0022off\\\\\\\\u0022} /\\\\u002d\\\\u002d\\\\u003e';
+		$anon_replace = '\\\\u003c!\\\\u002d\\\\u002d wp:gatherpress/form-field {\\\\\\\\u0022className\\\\\\\\u0022:\\\\\\\\u0022gatherpress-rsvp-field-anonymous\\\\\\\\u0022,\\\\\\\\u0022fieldType\\\\\\\\u0022:\\\\\\\\u0022checkbox\\\\\\\\u0022,\\\\\\\\u0022fieldName\\\\\\\\u0022:\\\\\\\\u0022gatherpress_rsvp_anonymous\\\\\\\\u0022,\\\\\\\\u0022label\\\\\\\\u0022:\\\\\\\\u0022List me as anonymous.\\\\\\\\u0022,\\\\\\\\u0022autocomplete\\\\\\\\u0022:\\\\\\\\u0022off\\\\\\\\u0022} /\\\\u002d\\\\u002d\\\\u003e';
 
 		$wpdb->query( $wpdb->prepare(
 			"UPDATE {$wpdb->posts}
@@ -763,7 +763,7 @@ class Setup {
 		          "\\\\\\u0022className\\\\\\u0022:\\\\\\u0022{$new_escaped}\\\\\\u0022";
 
 		// Pattern 2: div class in rendered HTML within serializedInnerBlocks
-		// Format: gatherpress\u002d\u002dopen-modal\\u0022 and gatherpress\u002d\u002dopen-modal\u0022  
+		// Format: gatherpress\u002d\u002dopen-modal\\u0022 and gatherpress\u002d\u002dopen-modal\u0022
 		$patterns["{$old_escaped}\\\\\\u0022"] = "{$new_escaped}\\\\\\u0022";
 		$patterns["{$old_escaped}\\u0022"] = "{$new_escaped}\\u0022";
 		$patterns[" {$old_escaped}\\\\\\u0022"] = " {$new_escaped}\\\\\\u0022";
