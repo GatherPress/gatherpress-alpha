@@ -262,6 +262,10 @@ class Setup {
 			$this->fix__0_33_0();
 		}
 
+		if ( $this->should_run_fix( '0.34.0', $last_version ) ) {
+			$this->fix__0_34_0();
+		}
+
 		// Update the stored version to current plugin version.
 		$this->set_last_run_version( GATHERPRESS_ALPHA_VERSION );
 	}
@@ -1055,5 +1059,67 @@ class Setup {
 		}
 
 		return $blocks;
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.34.0 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_34_0(): void {
+		global $wpdb;
+
+		// Fix online event link meta field rename.
+		// Rename gatherpress_online_event_link → gatherpress_event_online_link.
+		$sql = $wpdb->prepare(
+			'UPDATE %i SET meta_key = %s WHERE meta_key = %s',
+			$wpdb->postmeta,
+			'gatherpress_event_online_link',
+			'gatherpress_online_event_link'
+		);
+		$wpdb->query( $sql );
+
+		// Migrate venue JSON blob to individual meta fields.
+		// Get all venues with the old JSON blob format.
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				'gatherpress_venue_information'
+			)
+		);
+
+		foreach ( $results as $result ) {
+			$meta_value = json_decode( $result->meta_value );
+
+			if ( ! is_object( $meta_value ) ) {
+				continue;
+			}
+
+			// Extract and save individual fields from the JSON blob.
+			// Full address.
+			if ( ! empty( $meta_value->fullAddress ) ) {
+				update_post_meta( $result->post_id, 'gatherpress_venue_address', sanitize_text_field( $meta_value->fullAddress ) );
+			}
+
+			// Latitude.
+			if ( ! empty( $meta_value->latitude ) ) {
+				update_post_meta( $result->post_id, 'gatherpress_venue_latitude', sanitize_text_field( $meta_value->latitude ) );
+			}
+
+			// Longitude.
+			if ( ! empty( $meta_value->longitude ) ) {
+				update_post_meta( $result->post_id, 'gatherpress_venue_longitude', sanitize_text_field( $meta_value->longitude ) );
+			}
+
+			// Phone number.
+			if ( ! empty( $meta_value->phoneNumber ) ) {
+				update_post_meta( $result->post_id, 'gatherpress_venue_phone', sanitize_text_field( $meta_value->phoneNumber ) );
+			}
+
+			// Website.
+			if ( ! empty( $meta_value->website ) ) {
+				update_post_meta( $result->post_id, 'gatherpress_venue_website', sanitize_url( $meta_value->website ) );
+			}
+		}
 	}
 }
