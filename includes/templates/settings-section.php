@@ -41,35 +41,36 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 	</p>
 </div>
 <div style="background: #f9f9f9; border-left: 4px solid #0073aa; padding: 12px; margin: 16px 0;">
-	<h3 style="margin-top: 0;"><?php esc_html_e( 'Version 0.33.0 Breaking Changes', 'gatherpress-alpha' ); ?></h3>
+	<h3 style="margin-top: 0;"><?php esc_html_e( 'Version 0.34.0 Breaking Changes', 'gatherpress-alpha' ); ?></h3>
 
-	<p><strong><?php esc_html_e( 'Major CSS Class Naming Convention Updates:', 'gatherpress-alpha' ); ?></strong></p>
-	<p><?php esc_html_e( 'All CSS classes have been refactored to follow a more consistent BEM-like naming pattern. This affects:', 'gatherpress-alpha' ); ?></p>
+	<p><strong><?php esc_html_e( 'Event Online Link Meta Field Rename:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The event online link meta field has been renamed for consistency:', 'gatherpress-alpha' ); ?></p>
 	<ul style="margin-left: 20px;">
-		<li><?php esc_html_e( 'Modal components - New pattern: gatherpress-modal--[type/action]', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Form fields - New pattern: gatherpress-form-field--[type]', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'RSVP states - Changed to state-based naming: gatherpress--is-[state]', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Visibility states - Renamed for clarity (is-not-visible → is-hidden)', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Action triggers - More descriptive naming for interactive elements', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Old: gatherpress_online_event_link', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'New: gatherpress_event_online_link', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
-	<p><strong><?php esc_html_e( 'Block Structure Changes:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><strong><?php esc_html_e( 'Venue Data Structure Migration:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'Venue information is now stored in individual meta fields instead of a JSON blob for better performance and flexibility:', 'gatherpress-alpha' ); ?></p>
 	<ul style="margin-left: 20px;">
-		<li><?php esc_html_e( 'Add to Calendar block - Updated with new rendering structure', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'RSVP blocks - Enhanced with improved templating system', 'gatherpress-alpha' ); ?></li>
-	</ul>
-
-	<p><strong><?php esc_html_e( 'Settings Changes:', 'gatherpress-alpha' ); ?></strong></p>
-	<ul style="margin-left: 20px;">
-		<li><?php esc_html_e( 'Removed deprecated site notification suppression option', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Removed deprecated rewrite rules flush flag option', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Old: gatherpress_venue_information (JSON string)', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'New: Individual fields:', 'gatherpress-alpha' ); ?>
+			<ul style="margin-left: 20px; margin-top: 5px;">
+				<li><code>gatherpress_venue_address</code> - <?php esc_html_e( 'Full venue address', 'gatherpress-alpha' ); ?></li>
+				<li><code>gatherpress_venue_latitude</code> - <?php esc_html_e( 'Geocoded latitude', 'gatherpress-alpha' ); ?></li>
+				<li><code>gatherpress_venue_longitude</code> - <?php esc_html_e( 'Geocoded longitude', 'gatherpress-alpha' ); ?></li>
+				<li><code>gatherpress_venue_phone</code> - <?php esc_html_e( 'Venue phone number', 'gatherpress-alpha' ); ?></li>
+				<li><code>gatherpress_venue_website</code> - <?php esc_html_e( 'Venue website URL', 'gatherpress-alpha' ); ?></li>
+				<li><code>gatherpress_venue_online_link</code> - <?php esc_html_e( 'Default online event link for venue', 'gatherpress-alpha' ); ?></li>
+			</ul>
+		</li>
 	</ul>
 
 	<p style="background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px; margin-top: 12px;">
-		<strong><?php esc_html_e( '⚠️ Important:', 'gatherpress-alpha' ); ?></strong> <?php esc_html_e( 'If you have custom CSS or JavaScript that targets GatherPress elements, you will need to update your selectors to match the new class names after running this migration.', 'gatherpress-alpha' ); ?>
+		<strong><?php esc_html_e( '⚠️ Important:', 'gatherpress-alpha' ); ?></strong> <?php esc_html_e( 'If you have custom code that accesses venue information or event online links directly, you will need to update your code to use the new meta field names after running this migration.', 'gatherpress-alpha' ); ?>
 	</p>
 
-	<p><em><?php esc_html_e( 'This migration will automatically update all saved block content, templates, and reusable blocks in your database to use the new naming conventions.', 'gatherpress-alpha' ); ?></em></p>
+	<p><em><?php esc_html_e( 'This migration will automatically update all venue and event meta fields in your database to use the new structure.', 'gatherpress-alpha' ); ?></em></p>
 </div>
 <p id="gatherpress-saving" class="gatherpress-saving">
 	<span class="spinner is-active"></span>
