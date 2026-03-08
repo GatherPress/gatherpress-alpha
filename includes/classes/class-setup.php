@@ -19,6 +19,8 @@ use GatherPress\Core\Utility;
 use GatherPress_Alpha\Commands\Cli;
 use WP_CLI;
 use WP_Query;
+use GatherPress\Core\Topic;
+use GatherPress\Core\Venue;
 
 /**
  * Class Setup.
@@ -1156,6 +1158,9 @@ class Setup {
 				$order             = 'past' === $type ? 'desc' : 'asc';
 				$event_query_type  = $type;
 
+				// Extract taxonomy term IDs from full REST API response objects.
+				$tax_query = $this->extract_tax_query( $attrs );
+
 				// Extract display options with defaults matching the old block.
 				$show_featured_image = isset( $event_options['showFeaturedImage'] ) ? (bool) $event_options['showFeaturedImage'] : true;
 				$show_venue          = isset( $event_options['showVenue'] ) ? (bool) $event_options['showVenue'] : true;
@@ -1171,6 +1176,11 @@ class Setup {
 
 				// Parse the template into block structure.
 				$replacement_blocks = parse_blocks( $block_html );
+
+				// Inject taxQuery into the core/query block attributes if topics or venues were set.
+				if ( ! empty( $tax_query ) ) {
+					$replacement_blocks = $this->inject_tax_query( $replacement_blocks, $tax_query );
+				}
 
 				// Filter blocks based on display options.
 				foreach ( $replacement_blocks as $replacement_block ) {
@@ -1339,5 +1349,75 @@ class Setup {
 		}
 
 		return $block;
+	}
+
+	/**
+	 * Extracts taxonomy term IDs from old events-list block attributes.
+	 *
+	 * The old events-list block stored full REST API response objects for
+	 * topics and venues. This method extracts just the term IDs needed
+	 * for the new Event Query Loop's taxQuery attribute.
+	 *
+	 * @param array $attrs The old block attributes.
+	 * @return array Associative array of taxonomy => term IDs, or empty array.
+	 */
+	private function extract_tax_query( array $attrs ): array {
+		$tax_query = array();
+
+		// Extract topic term IDs from full REST objects.
+		if ( ! empty( $attrs['topics'] ) && is_array( $attrs['topics'] ) ) {
+			$topic_ids = array_filter(
+				array_map(
+					static function ( $topic ) {
+						return isset( $topic['id'] ) ? (int) $topic['id'] : 0;
+					},
+					$attrs['topics']
+				)
+			);
+
+			if ( ! empty( $topic_ids ) ) {
+				$tax_query[ Topic::TAXONOMY ] = array_values( $topic_ids );
+			}
+		}
+
+		// Extract venue term IDs from full REST objects.
+		if ( ! empty( $attrs['venues'] ) && is_array( $attrs['venues'] ) ) {
+			$venue_ids = array_filter(
+				array_map(
+					static function ( $venue ) {
+						return isset( $venue['id'] ) ? (int) $venue['id'] : 0;
+					},
+					$attrs['venues']
+				)
+			);
+
+			if ( ! empty( $venue_ids ) ) {
+				$tax_query[ Venue::TAXONOMY ] = array_values( $venue_ids );
+			}
+		}
+
+		return $tax_query;
+	}
+
+	/**
+	 * Injects taxQuery into the core/query block attributes.
+	 *
+	 * After parsing the template into blocks, this method finds the
+	 * core/query block and adds the taxQuery attribute to its query
+	 * configuration, enabling taxonomy-based filtering.
+	 *
+	 * @param array $blocks    Array of parsed blocks.
+	 * @param array $tax_query Associative array of taxonomy => term IDs.
+	 * @return array Updated blocks array with taxQuery injected.
+	 */
+	private function inject_tax_query( array $blocks, array $tax_query ): array {
+		foreach ( $blocks as &$block ) {
+			if ( 'core/query' === $block['blockName'] ) {
+				$block['attrs']['query']['taxQuery'] = $tax_query;
+				break;
+			}
+		}
+
+		return $blocks;
 	}
 }
