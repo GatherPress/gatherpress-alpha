@@ -19,6 +19,8 @@ use GatherPress\Core\Utility;
 use GatherPress_Alpha\Commands\Cli;
 use WP_CLI;
 use WP_Query;
+use GatherPress\Core\Topic;
+use GatherPress\Core\Venue;
 
 /**
  * Class Setup.
@@ -260,6 +262,10 @@ class Setup {
 
 		if ( $this->should_run_fix( '0.33.0', $last_version ) ) {
 			$this->fix__0_33_0();
+		}
+
+		if ( $this->should_run_fix( '0.34.0', $last_version ) ) {
+			$this->fix__0_34_0();
 		}
 
 		// Update the stored version to current plugin version.
@@ -1051,6 +1057,575 @@ class Setup {
 			// Recursively process inner blocks.
 			if ( ! empty( $block['innerBlocks'] ) ) {
 				$block['innerBlocks'] = $this->replace_blocks_in_inner( $block['innerBlocks'], $updated );
+			}
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.34.0 of the plugin.
+	 *
+	 * Migrates the deprecated `gatherpress/events-list` block to the new
+	 * `gatherpress-event-query` variation of `core/query`.
+	 *
+	 * @return void
+	 */
+	private function fix__0_34_0(): void {
+		$this->replace_events_list_block();
+		$this->replace_venue_block();
+		$this->replace_online_event_block();
+	}
+
+	/**
+	 * Replaces deprecated self-closing `gatherpress/online-event` blocks.
+	 *
+	 * The old online event block was self-closing (`<!-- wp:gatherpress/online-event /-->`).
+	 * This method replaces it with the new version containing inner blocks
+	 * for the online event link and icon.
+	 *
+	 * @return void
+	 */
+	private function replace_online_event_block(): void {
+		global $wpdb;
+
+		$post_types   = array( 'gatherpress_event' );
+		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+
+		// Find posts containing the old self-closing online event block.
+		$query = $wpdb->prepare(
+			"SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_type IN ({$placeholders})
+			AND post_content LIKE %s",
+			array_merge( $post_types, array( '%gatherpress/online-event /-->%' ) )
+		);
+
+		$posts = $wpdb->get_results( $query );
+
+		if ( empty( $posts ) ) {
+			return;
+		}
+
+		// Load the new online event template.
+		$template_path = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/online-event-0.34.0.html';
+		$template      = file_get_contents( $template_path );
+
+		if ( empty( $template ) ) {
+			return;
+		}
+
+		foreach ( $posts as $post ) {
+			$content = $post->post_content;
+			$blocks  = parse_blocks( $content );
+			$updated = false;
+
+			$updated_blocks = $this->replace_online_event_block_recursive( $blocks, $template, $updated );
+
+			if ( $updated ) {
+				$new_content = serialize_blocks( $updated_blocks );
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => $new_content ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Recursively replaces self-closing `gatherpress/online-event` blocks in a block array.
+	 *
+	 * Only replaces online event blocks that have no inner blocks (self-closing).
+	 * Online event blocks that already contain inner blocks are left unchanged.
+	 *
+	 * @param array  $blocks   Array of parsed block data.
+	 * @param string $template The new online event HTML template.
+	 * @param bool   $updated  Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_online_event_block_recursive( array $blocks, string $template, bool &$updated ): array {
+		$new_blocks = array();
+
+		foreach ( $blocks as $block ) {
+			if ( 'gatherpress/online-event' === $block['blockName'] && empty( $block['innerBlocks'] ) ) {
+				// Replace self-closing online event block with the new template.
+				$replacement_blocks = parse_blocks( $template );
+
+				foreach ( $replacement_blocks as $replacement_block ) {
+					if ( ! empty( $replacement_block['blockName'] ) ) {
+						$new_blocks[] = $replacement_block;
+					}
+				}
+
+				$updated = true;
+			} else {
+				// Recursively process inner blocks.
+				if ( ! empty( $block['innerBlocks'] ) ) {
+					$block['innerBlocks'] = $this->replace_online_event_block_recursive( $block['innerBlocks'], $template, $updated );
+				}
+
+				$new_blocks[] = $block;
+			}
+		}
+
+		return $new_blocks;
+	}
+
+	/**
+	 * Replaces deprecated self-closing `gatherpress/venue` blocks.
+	 *
+	 * The old venue block was self-closing (`<!-- wp:gatherpress/venue /-->`).
+	 * This method checks whether the post has an online event venue term and
+	 * replaces the block with either the online event template or the physical
+	 * venue template accordingly.
+	 *
+	 * @return void
+	 */
+	private function replace_venue_block(): void {
+		global $wpdb;
+
+		$post_types   = array( 'gatherpress_event', 'gatherpress_venue' );
+		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+
+		// Find posts containing the old self-closing venue block.
+		$query = $wpdb->prepare(
+			"SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_type IN ({$placeholders})
+			AND post_content LIKE %s",
+			array_merge( $post_types, array( '%gatherpress/venue /-->%' ) )
+		);
+
+		$posts = $wpdb->get_results( $query );
+
+		if ( empty( $posts ) ) {
+			return;
+		}
+
+		// Load the venue, venue (no title), and online event templates.
+		$venue_template_path     = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/venue-0.34.0.html';
+		$venue_template          = file_get_contents( $venue_template_path );
+		$venue_no_title_path     = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/venue-no-title-0.34.0.html';
+		$venue_no_title_template = file_get_contents( $venue_no_title_path );
+		$online_template_path    = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/online-event-0.34.0.html';
+		$online_template         = file_get_contents( $online_template_path );
+
+		if ( empty( $venue_template ) || empty( $venue_no_title_template ) || empty( $online_template ) ) {
+			return;
+		}
+
+		foreach ( $posts as $post ) {
+			$content = $post->post_content;
+			$blocks  = parse_blocks( $content );
+			$updated = false;
+
+			// Check if this post has the online-event venue term.
+			$is_online = has_term( 'online-event', Venue::TAXONOMY, $post->ID );
+
+			// Use the no-title venue template for venue CPT posts to avoid redundant title.
+			if ( $is_online ) {
+				$template = $online_template;
+			} elseif ( Venue::POST_TYPE === get_post_type( $post->ID ) ) {
+				$template = $venue_no_title_template;
+			} else {
+				$template = $venue_template;
+			}
+
+			$updated_blocks = $this->replace_venue_block_recursive( $blocks, $template, $updated );
+
+			if ( $updated ) {
+				$new_content = serialize_blocks( $updated_blocks );
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => $new_content ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Recursively replaces self-closing `gatherpress/venue` blocks in a block array.
+	 *
+	 * Only replaces venue blocks that have no inner blocks (self-closing).
+	 * Venue blocks that already contain inner blocks are left unchanged.
+	 *
+	 * @param array  $blocks   Array of parsed block data.
+	 * @param string $template The new venue HTML template.
+	 * @param bool   $updated  Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_venue_block_recursive( array $blocks, string $template, bool &$updated ): array {
+		$new_blocks = array();
+
+		foreach ( $blocks as $block ) {
+			if ( 'gatherpress/venue' === $block['blockName'] && empty( $block['innerBlocks'] ) ) {
+				// Replace self-closing venue block with the new template.
+				$replacement_blocks = parse_blocks( $template );
+
+				foreach ( $replacement_blocks as $replacement_block ) {
+					if ( ! empty( $replacement_block['blockName'] ) ) {
+						$new_blocks[] = $replacement_block;
+					}
+				}
+
+				$updated = true;
+			} else {
+				// Recursively process inner blocks.
+				if ( ! empty( $block['innerBlocks'] ) ) {
+					$block['innerBlocks'] = $this->replace_venue_block_recursive( $block['innerBlocks'], $template, $updated );
+				}
+
+				$new_blocks[] = $block;
+			}
+		}
+
+		return $new_blocks;
+	}
+
+	/**
+	 * Replaces deprecated `gatherpress/events-list` blocks with the Event Query variation.
+	 *
+	 * Searches post content for the old events-list block, extracts its attributes
+	 * (type, maxNumberOfEvents), and replaces it with a `core/query` block using
+	 * the `gatherpress-event-query` namespace and the default Event Query template.
+	 *
+	 * @return void
+	 */
+	private function replace_events_list_block(): void {
+		global $wpdb;
+
+		$post_types    = array( 'gatherpress_event', 'gatherpress_venue', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
+		$placeholders  = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+
+		// Find posts containing the old events-list block.
+		$query = $wpdb->prepare(
+			"SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_type IN ({$placeholders})
+			AND post_content LIKE %s",
+			array_merge( $post_types, array( '%gatherpress/events-list%' ) )
+		);
+
+		$posts = $wpdb->get_results( $query );
+
+		if ( empty( $posts ) ) {
+			return;
+		}
+
+		// Load the Event Query template.
+		$template_path = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/events-list-0.34.0.html';
+		$template      = file_get_contents( $template_path );
+
+		if ( empty( $template ) ) {
+			return;
+		}
+
+		foreach ( $posts as $post ) {
+			$content = $post->post_content;
+			$updated = false;
+
+			// Parse the post content as blocks.
+			$blocks = parse_blocks( $content );
+
+			// Recursively replace events-list blocks.
+			$updated_blocks = $this->replace_events_list_recursive( $blocks, $template, $updated );
+
+			if ( $updated ) {
+				$new_content = serialize_blocks( $updated_blocks );
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => $new_content ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Recursively replaces `gatherpress/events-list` blocks in a block array.
+	 *
+	 * @param array  $blocks   Array of parsed block data.
+	 * @param string $template The Event Query HTML template with placeholder tokens.
+	 * @param bool   $updated  Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_events_list_recursive( array $blocks, string $template, bool &$updated ): array {
+		$new_blocks = array();
+
+		foreach ( $blocks as $block ) {
+			if ( 'gatherpress/events-list' === $block['blockName'] ) {
+				$attrs         = $block['attrs'] ?? array();
+				$event_options = $attrs['eventOptions'] ?? array();
+
+				// Extract old attributes with defaults.
+				$type              = ! empty( $attrs['type'] ) ? $attrs['type'] : 'upcoming';
+				$max_number        = ! empty( $attrs['maxNumberOfEvents'] ) ? (int) $attrs['maxNumberOfEvents'] : 5;
+				$date_format       = ! empty( $attrs['datetimeFormat'] ) ? $attrs['datetimeFormat'] : 'D, M j, Y, g:i a T';
+				$order             = 'past' === $type ? 'desc' : 'asc';
+				$event_query_type  = $type;
+
+				// Extract taxonomy term IDs from full REST API response objects.
+				$tax_query = $this->extract_tax_query( $attrs );
+
+				// Extract display options with defaults matching the old block.
+				$show_featured_image = isset( $event_options['showFeaturedImage'] ) ? (bool) $event_options['showFeaturedImage'] : true;
+				$show_venue          = isset( $event_options['showVenue'] ) ? (bool) $event_options['showVenue'] : true;
+				$show_rsvp           = isset( $event_options['showRsvp'] ) ? (bool) $event_options['showRsvp'] : true;
+				$show_rsvp_response  = isset( $event_options['showRsvpResponse'] ) ? (bool) $event_options['showRsvpResponse'] : true;
+
+				// Replace placeholder tokens in the template.
+				$block_html = str_replace(
+					array( '{{PER_PAGE}}', '{{ORDER}}', '{{EVENT_QUERY_TYPE}}', '{{DATE_FORMAT}}' ),
+					array( $max_number, $order, $event_query_type, $date_format ),
+					$template
+				);
+
+				// Parse the template into block structure.
+				$replacement_blocks = parse_blocks( $block_html );
+
+				// Inject taxQuery into the core/query block attributes if topics or venues were set.
+				if ( ! empty( $tax_query ) ) {
+					$replacement_blocks = $this->inject_tax_query( $replacement_blocks, $tax_query );
+				}
+
+				// Filter blocks based on display options.
+				foreach ( $replacement_blocks as $replacement_block ) {
+					// Skip empty/null blocks from parsing whitespace.
+					if ( ! empty( $replacement_block['blockName'] ) ) {
+						$filtered_block = $this->filter_event_query_blocks(
+							$replacement_block,
+							$show_featured_image,
+							$show_venue,
+							$show_rsvp,
+							$show_rsvp_response
+						);
+
+						if ( is_array( $filtered_block ) && ! isset( $filtered_block['blockName'] ) ) {
+							// Multiple blocks returned (unwrapped media-text children).
+							foreach ( $filtered_block as $child_block ) {
+								$new_blocks[] = $child_block;
+							}
+						} elseif ( ! empty( $filtered_block ) ) {
+							$new_blocks[] = $filtered_block;
+						}
+					}
+				}
+
+				$updated = true;
+			} else {
+				// Recursively process inner blocks.
+				if ( ! empty( $block['innerBlocks'] ) ) {
+					$block['innerBlocks'] = $this->replace_events_list_recursive( $block['innerBlocks'], $template, $updated );
+				}
+
+				$new_blocks[] = $block;
+			}
+		}
+
+		return $new_blocks;
+	}
+
+	/**
+	 * Filters Event Query inner blocks based on old events-list display options.
+	 *
+	 * Removes or restructures blocks to match the display configuration
+	 * from the deprecated events-list block. Walks through `innerContent`
+	 * in sync with `innerBlocks` to preserve static HTML wrappers while
+	 * correctly handling block removal and unwrapping.
+	 *
+	 * @param array $block               The block to filter.
+	 * @param bool  $show_featured_image  Whether to show the featured image.
+	 * @param bool  $show_venue           Whether to show the venue.
+	 * @param bool  $show_rsvp            Whether to show the RSVP button.
+	 * @param bool  $show_rsvp_response   Whether to show RSVP responses.
+	 * @return array|null Filtered block, array of blocks (unwrapped), or null to remove.
+	 */
+	private function filter_event_query_blocks(
+		array $block,
+		bool $show_featured_image,
+		bool $show_venue,
+		bool $show_rsvp,
+		bool $show_rsvp_response
+	) {
+		// Remove venue and online-event blocks if venue is not shown.
+		// In the old events-list block, venue and online event shared the same display option.
+		if ( ! $show_venue && ( 'gatherpress/venue' === $block['blockName'] || 'gatherpress/online-event' === $block['blockName'] ) ) {
+			return null;
+		}
+
+		// Remove RSVP block if not shown.
+		if ( ! $show_rsvp && 'gatherpress/rsvp' === $block['blockName'] ) {
+			return null;
+		}
+
+		// Remove RSVP response and count blocks if not shown.
+		if ( ! $show_rsvp_response ) {
+			if ( 'gatherpress/rsvp-response' === $block['blockName'] || 'gatherpress/rsvp-count' === $block['blockName'] ) {
+				return null;
+			}
+		}
+
+		// Remove entire columns section if neither RSVP nor RSVP response is shown.
+		if ( ! $show_rsvp && ! $show_rsvp_response && 'core/columns' === $block['blockName'] ) {
+			return null;
+		}
+
+		// Handle media-text: unwrap to direct children if featured image is hidden.
+		if ( ! $show_featured_image && 'core/media-text' === $block['blockName'] ) {
+			// Return the filtered content inner blocks directly.
+			$content_blocks = array();
+
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				foreach ( $block['innerBlocks'] as $inner_block ) {
+					// Filter each unwrapped child individually.
+					$filtered = $this->filter_event_query_blocks(
+						$inner_block,
+						$show_featured_image,
+						$show_venue,
+						$show_rsvp,
+						$show_rsvp_response
+					);
+
+					if ( null === $filtered ) {
+						continue;
+					}
+
+					if ( is_array( $filtered ) && ! isset( $filtered['blockName'] ) ) {
+						// Multiple blocks returned (nested unwrap).
+						foreach ( $filtered as $child_block ) {
+							$content_blocks[] = $child_block;
+						}
+					} else {
+						$content_blocks[] = $filtered;
+					}
+				}
+			}
+
+			return $content_blocks;
+		}
+
+		// Recursively filter inner blocks while preserving innerContent structure.
+		if ( ! empty( $block['innerBlocks'] ) ) {
+			$filtered_inner    = array();
+			$new_inner_content = array();
+			$inner_block_index = 0;
+
+			foreach ( $block['innerContent'] as $content_item ) {
+				if ( null === $content_item ) {
+					// This null corresponds to innerBlocks[$inner_block_index].
+					if ( ! isset( $block['innerBlocks'][ $inner_block_index ] ) ) {
+						++$inner_block_index;
+						continue;
+					}
+
+					$inner_block = $block['innerBlocks'][ $inner_block_index ];
+					++$inner_block_index;
+
+					$result = $this->filter_event_query_blocks(
+						$inner_block,
+						$show_featured_image,
+						$show_venue,
+						$show_rsvp,
+						$show_rsvp_response
+					);
+
+					if ( null === $result ) {
+						// Block removed — skip this null entry.
+						continue;
+					}
+
+					if ( is_array( $result ) && ! isset( $result['blockName'] ) ) {
+						// Multiple blocks returned (unwrapped children).
+						foreach ( $result as $child_block ) {
+							$filtered_inner[]    = $child_block;
+							$new_inner_content[] = null;
+						}
+					} else {
+						$filtered_inner[]    = $result;
+						$new_inner_content[] = null;
+					}
+				} else {
+					// Static HTML string — preserve it.
+					$new_inner_content[] = $content_item;
+				}
+			}
+
+			$block['innerBlocks']  = $filtered_inner;
+			$block['innerContent'] = $new_inner_content;
+		}
+
+		return $block;
+	}
+
+	/**
+	 * Extracts taxonomy term IDs from old events-list block attributes.
+	 *
+	 * The old events-list block stored full REST API response objects for
+	 * topics and venues. This method extracts just the term IDs needed
+	 * for the new Event Query Loop's taxQuery attribute.
+	 *
+	 * @param array $attrs The old block attributes.
+	 * @return array Associative array of taxonomy => term IDs, or empty array.
+	 */
+	private function extract_tax_query( array $attrs ): array {
+		$tax_query = array();
+
+		// Extract topic term IDs from full REST objects.
+		if ( ! empty( $attrs['topics'] ) && is_array( $attrs['topics'] ) ) {
+			$topic_ids = array_filter(
+				array_map(
+					static function ( $topic ) {
+						return isset( $topic['id'] ) ? (int) $topic['id'] : 0;
+					},
+					$attrs['topics']
+				)
+			);
+
+			if ( ! empty( $topic_ids ) ) {
+				$tax_query[ Topic::TAXONOMY ] = array_values( $topic_ids );
+			}
+		}
+
+		// Extract venue term IDs from full REST objects.
+		if ( ! empty( $attrs['venues'] ) && is_array( $attrs['venues'] ) ) {
+			$venue_ids = array_filter(
+				array_map(
+					static function ( $venue ) {
+						return isset( $venue['id'] ) ? (int) $venue['id'] : 0;
+					},
+					$attrs['venues']
+				)
+			);
+
+			if ( ! empty( $venue_ids ) ) {
+				$tax_query[ Venue::TAXONOMY ] = array_values( $venue_ids );
+			}
+		}
+
+		return $tax_query;
+	}
+
+	/**
+	 * Injects taxQuery into the core/query block attributes.
+	 *
+	 * After parsing the template into blocks, this method finds the
+	 * core/query block and adds the taxQuery attribute to its query
+	 * configuration, enabling taxonomy-based filtering.
+	 *
+	 * @param array $blocks    Array of parsed blocks.
+	 * @param array $tax_query Associative array of taxonomy => term IDs.
+	 * @return array Updated blocks array with taxQuery injected.
+	 */
+	private function inject_tax_query( array $blocks, array $tax_query ): array {
+		foreach ( $blocks as &$block ) {
+			if ( 'core/query' === $block['blockName'] ) {
+				$block['attrs']['query']['taxQuery'] = $tax_query;
+				break;
 			}
 		}
 
