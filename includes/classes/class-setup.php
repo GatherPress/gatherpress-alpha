@@ -1073,6 +1073,217 @@ class Setup {
 	 */
 	private function fix__0_34_0(): void {
 		$this->replace_events_list_block();
+		$this->replace_venue_block();
+		$this->replace_online_event_block();
+	}
+
+	/**
+	 * Replaces deprecated self-closing `gatherpress/online-event` blocks.
+	 *
+	 * The old online event block was self-closing (`<!-- wp:gatherpress/online-event /-->`).
+	 * This method replaces it with the new version containing inner blocks
+	 * for the online event link and icon.
+	 *
+	 * @return void
+	 */
+	private function replace_online_event_block(): void {
+		global $wpdb;
+
+		$post_types   = array( 'gatherpress_event', 'gatherpress_venue', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
+		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+
+		// Find posts containing the old self-closing online event block.
+		$query = $wpdb->prepare(
+			"SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_type IN ({$placeholders})
+			AND post_content LIKE %s",
+			array_merge( $post_types, array( '%gatherpress/online-event /-->%' ) )
+		);
+
+		$posts = $wpdb->get_results( $query );
+
+		if ( empty( $posts ) ) {
+			return;
+		}
+
+		// Load the new online event template.
+		$template_path = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/online-event-0.34.0.html';
+		$template      = file_get_contents( $template_path );
+
+		if ( empty( $template ) ) {
+			return;
+		}
+
+		foreach ( $posts as $post ) {
+			$content = $post->post_content;
+			$blocks  = parse_blocks( $content );
+			$updated = false;
+
+			$updated_blocks = $this->replace_online_event_block_recursive( $blocks, $template, $updated );
+
+			if ( $updated ) {
+				$new_content = serialize_blocks( $updated_blocks );
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => $new_content ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Recursively replaces self-closing `gatherpress/online-event` blocks in a block array.
+	 *
+	 * Only replaces online event blocks that have no inner blocks (self-closing).
+	 * Online event blocks that already contain inner blocks are left unchanged.
+	 *
+	 * @param array  $blocks   Array of parsed block data.
+	 * @param string $template The new online event HTML template.
+	 * @param bool   $updated  Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_online_event_block_recursive( array $blocks, string $template, bool &$updated ): array {
+		$new_blocks = array();
+
+		foreach ( $blocks as $block ) {
+			if ( 'gatherpress/online-event' === $block['blockName'] && empty( $block['innerBlocks'] ) ) {
+				// Replace self-closing online event block with the new template.
+				$replacement_blocks = parse_blocks( $template );
+
+				foreach ( $replacement_blocks as $replacement_block ) {
+					if ( ! empty( $replacement_block['blockName'] ) ) {
+						$new_blocks[] = $replacement_block;
+					}
+				}
+
+				$updated = true;
+			} else {
+				// Recursively process inner blocks.
+				if ( ! empty( $block['innerBlocks'] ) ) {
+					$block['innerBlocks'] = $this->replace_online_event_block_recursive( $block['innerBlocks'], $template, $updated );
+				}
+
+				$new_blocks[] = $block;
+			}
+		}
+
+		return $new_blocks;
+	}
+
+	/**
+	 * Replaces deprecated self-closing `gatherpress/venue` blocks.
+	 *
+	 * The old venue block was self-closing (`<!-- wp:gatherpress/venue /-->`).
+	 * This method checks whether the post has an online event venue term and
+	 * replaces the block with either the online event template or the physical
+	 * venue template accordingly.
+	 *
+	 * @return void
+	 */
+	private function replace_venue_block(): void {
+		global $wpdb;
+
+		$post_types   = array( 'gatherpress_event', 'gatherpress_venue', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
+		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+
+		// Find posts containing the old self-closing venue block.
+		$query = $wpdb->prepare(
+			"SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_type IN ({$placeholders})
+			AND post_content LIKE %s",
+			array_merge( $post_types, array( '%gatherpress/venue /-->%' ) )
+		);
+
+		$posts = $wpdb->get_results( $query );
+
+		if ( empty( $posts ) ) {
+			return;
+		}
+
+		// Load the venue, venue (no title), and online event templates.
+		$venue_template_path     = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/venue-0.34.0.html';
+		$venue_template          = file_get_contents( $venue_template_path );
+		$venue_no_title_path     = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/venue-no-title-0.34.0.html';
+		$venue_no_title_template = file_get_contents( $venue_no_title_path );
+		$online_template_path    = GATHERPRESS_ALPHA_CORE_PATH . '/includes/templates/online-event-0.34.0.html';
+		$online_template         = file_get_contents( $online_template_path );
+
+		if ( empty( $venue_template ) || empty( $venue_no_title_template ) || empty( $online_template ) ) {
+			return;
+		}
+
+		foreach ( $posts as $post ) {
+			$content = $post->post_content;
+			$blocks  = parse_blocks( $content );
+			$updated = false;
+
+			// Check if this post has the online-event venue term.
+			$is_online = has_term( 'online-event', Venue::TAXONOMY, $post->ID );
+
+			// Use the no-title venue template for venue CPT posts to avoid redundant title.
+			if ( $is_online ) {
+				$template = $online_template;
+			} elseif ( Venue::POST_TYPE === get_post_type( $post->ID ) ) {
+				$template = $venue_no_title_template;
+			} else {
+				$template = $venue_template;
+			}
+
+			$updated_blocks = $this->replace_venue_block_recursive( $blocks, $template, $updated );
+
+			if ( $updated ) {
+				$new_content = serialize_blocks( $updated_blocks );
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => $new_content ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Recursively replaces self-closing `gatherpress/venue` blocks in a block array.
+	 *
+	 * Only replaces venue blocks that have no inner blocks (self-closing).
+	 * Venue blocks that already contain inner blocks are left unchanged.
+	 *
+	 * @param array  $blocks   Array of parsed block data.
+	 * @param string $template The new venue HTML template.
+	 * @param bool   $updated  Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_venue_block_recursive( array $blocks, string $template, bool &$updated ): array {
+		$new_blocks = array();
+
+		foreach ( $blocks as $block ) {
+			if ( 'gatherpress/venue' === $block['blockName'] && empty( $block['innerBlocks'] ) ) {
+				// Replace self-closing venue block with the new template.
+				$replacement_blocks = parse_blocks( $template );
+
+				foreach ( $replacement_blocks as $replacement_block ) {
+					if ( ! empty( $replacement_block['blockName'] ) ) {
+						$new_blocks[] = $replacement_block;
+					}
+				}
+
+				$updated = true;
+			} else {
+				// Recursively process inner blocks.
+				if ( ! empty( $block['innerBlocks'] ) ) {
+					$block['innerBlocks'] = $this->replace_venue_block_recursive( $block['innerBlocks'], $template, $updated );
+				}
+
+				$new_blocks[] = $block;
+			}
+		}
+
+		return $new_blocks;
 	}
 
 	/**
