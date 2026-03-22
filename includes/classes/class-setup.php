@@ -1089,7 +1089,7 @@ class Setup {
 	private function replace_online_event_block(): void {
 		global $wpdb;
 
-		$post_types   = array( 'gatherpress_event', 'gatherpress_venue', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
+		$post_types   = array( 'gatherpress_event' );
 		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
 
 		// Find posts containing the old self-closing online event block.
@@ -1186,7 +1186,7 @@ class Setup {
 	private function replace_venue_block(): void {
 		global $wpdb;
 
-		$post_types   = array( 'gatherpress_event', 'gatherpress_venue', 'page', 'post', 'wp_template', 'wp_template_part', 'wp_block' );
+		$post_types   = array( 'gatherpress_event', 'gatherpress_venue' );
 		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
 
 		// Find posts containing the old self-closing venue block.
