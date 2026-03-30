@@ -63,7 +63,16 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 		<li><?php esc_html_e( 'Replace self-closing Online Event blocks with the new inner block structure (icon and event link)', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
-	<p><em><?php esc_html_e( 'This migration will automatically update all saved block content, templates, and reusable blocks in your database.', 'gatherpress-alpha' ); ?></em></p>
+	<p><strong><?php esc_html_e( 'Settings Consolidated:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'Plugin settings have been refactored into a single flat option for simplicity. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul style="margin-left: 20px;">
+		<li><?php esc_html_e( 'Merge gatherpress_general and gatherpress_leadership options into gatherpress_settings', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Flatten nested section/option structure into a single key-value store', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Rename URL keys: events → events_url, venues → venues_url, topics → topics_url', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Remove old options after successful migration', 'gatherpress-alpha' ); ?></li>
+	</ul>
+
+	<p><em><?php esc_html_e( 'This migration will automatically update all saved block content, settings, templates, and reusable blocks in your database.', 'gatherpress-alpha' ); ?></em></p>
 </div>
 <p id="gatherpress-saving" class="gatherpress-saving">
 	<span class="spinner is-active"></span>
