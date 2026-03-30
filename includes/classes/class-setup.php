@@ -1072,9 +1072,114 @@ class Setup {
 	 * @return void
 	 */
 	private function fix__0_34_0(): void {
+		$this->migrate_settings_to_flat();
 		$this->replace_events_list_block();
 		$this->replace_venue_block();
 		$this->replace_online_event_block();
+	}
+
+	/**
+	 * Migrates settings from nested gatherpress_* options to a single flat
+	 * gatherpress_settings option.
+	 *
+	 * Finds all gatherpress_* options that contain serialized nested arrays
+	 * (the old section/option structure) and flattens them into
+	 * gatherpress_settings. Also renames URL keys for clarity.
+	 *
+	 * @return void
+	 */
+	private function migrate_settings_to_flat(): void {
+		global $wpdb;
+
+		$new_settings = get_option( Settings::OPTION_NAME, array() );
+
+		// Key renames: old key => new key.
+		$key_renames = array(
+			'events' => 'events_url',
+			'venues' => 'venues_url',
+			'topics' => 'topics_url',
+		);
+
+		// Options to skip — these are not legacy settings options.
+		$skip_options = array(
+			Settings::OPTION_NAME,
+			'gatherpress_alpha_last_version',
+		);
+
+		// Find all gatherpress_* options.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$option_names = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT option_name FROM %i WHERE option_name LIKE %s',
+				$wpdb->options,
+				'gatherpress\_%'
+			)
+		);
+
+		$old_options = array();
+
+		foreach ( $option_names as $option_name ) {
+			if ( in_array( $option_name, $skip_options, true ) ) {
+				continue;
+			}
+
+			$value = get_option( $option_name );
+
+			// Only migrate options with nested array data (the old section/option structure).
+			if ( ! is_array( $value ) ) {
+				continue;
+			}
+
+			// Check if it's a nested structure (arrays within arrays).
+			$is_nested = false;
+
+			foreach ( $value as $section_value ) {
+				if ( is_array( $section_value ) ) {
+					$is_nested = true;
+					break;
+				}
+			}
+
+			if ( ! $is_nested ) {
+				continue;
+			}
+
+			// Flatten the nested sections into the new settings.
+			foreach ( $value as $options ) {
+				if ( ! is_array( $options ) ) {
+					continue;
+				}
+
+				foreach ( $options as $key => $val ) {
+					$new_key = $key_renames[ $key ] ?? $key;
+
+					// Only migrate if not already set in the new option.
+					if ( ! isset( $new_settings[ $new_key ] ) ) {
+						$new_settings[ $new_key ] = $val;
+					}
+				}
+			}
+
+			$old_options[] = $option_name;
+		}
+
+		if ( ! empty( $old_options ) ) {
+			// Strip values that match defaults to keep the option lean.
+			$settings_instance = Settings::get_instance();
+
+			foreach ( $new_settings as $key => $value ) {
+				if ( $value === $settings_instance->get_flat_default( $key ) ) {
+					unset( $new_settings[ $key ] );
+				}
+			}
+
+			update_option( Settings::OPTION_NAME, $new_settings );
+
+			// Clean up old options.
+			foreach ( $old_options as $option_name ) {
+				delete_option( $option_name );
+			}
+		}
 	}
 
 	/**
