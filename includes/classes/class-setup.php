@@ -1076,6 +1076,49 @@ class Setup {
 		$this->replace_events_list_block();
 		$this->replace_venue_block();
 		$this->replace_online_event_block();
+		$this->backfill_venue_geodata();
+	}
+
+	/**
+	 * Backfills WordPress Geodata standard meta for existing gatherpress_venue posts.
+	 *
+	 * GatherPress 0.34.0 introduced derived `geo_latitude`, `geo_longitude`, `geo_address`,
+	 * and `geo_public` post meta, written from `gatherpress_venue_information` JSON on
+	 * every subsequent save. This method pre-populates those keys for existing venues
+	 * so they don't have to be resaved manually to appear to plugins that consume the
+	 * WordPress Geodata standard (https://codex.wordpress.org/Geodata).
+	 *
+	 * Limited to the built-in `gatherpress_venue` post type. Companion plugins that
+	 * register their own venue post types should ship their own backfill.
+	 *
+	 * @return void
+	 */
+	private function backfill_venue_geodata(): void {
+		if ( ! class_exists( Venue::class ) ) {
+			return;
+		}
+
+		$venue = Venue::get_instance();
+
+		if ( ! method_exists( $venue, 'set_geodata' ) ) {
+			return;
+		}
+
+		$venue_ids = get_posts(
+			array(
+				'post_type'              => 'gatherpress_venue',
+				'post_status'            => array( 'publish', 'draft', 'pending', 'private', 'future', 'trash' ),
+				'posts_per_page'         => -1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_term_cache' => false,
+				'update_post_meta_cache' => false,
+			)
+		);
+
+		foreach ( $venue_ids as $venue_id ) {
+			$venue->set_geodata( (int) $venue_id );
+		}
 	}
 
 	/**
