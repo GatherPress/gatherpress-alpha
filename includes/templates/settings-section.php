@@ -72,6 +72,14 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 		<li><?php esc_html_e( 'Remove old options after successful migration', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
+	<p><strong><?php esc_html_e( 'Venue Geodata Backfilled:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'Venues now expose the WordPress Geodata standard so other plugins (like Simple Location) can read venue coordinates directly. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul style="margin-left: 20px;">
+		<li><?php esc_html_e( 'Derive geo_latitude, geo_longitude, and geo_address from each venue\'s existing information', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Set geo_public to 1 for published venues and 0 for all other statuses', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Apply to the built-in gatherpress_venue post type only — custom venue post types are not touched', 'gatherpress-alpha' ); ?></li>
+	</ul>
+
 	<p><em><?php esc_html_e( 'This migration will automatically update all saved block content, settings, templates, and reusable blocks in your database.', 'gatherpress-alpha' ); ?></em></p>
 </div>
 <p id="gatherpress-saving" class="gatherpress-saving">
