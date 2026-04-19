@@ -73,13 +73,20 @@ class Setup {
 	/**
 	 * Adds a sub-page for GatherPress Alpha to the existing sub-pages array.
 	 *
-	 * This function modifies the provided sub-pages array to include a new sub-page
-	 * for GatherPress Alpha with specified details such as name, priority, and sections.
+	 * On a multisite install Alpha only applies at the network level (the
+	 * breaking-change fixes are global to the install, not per-site), so the
+	 * sub-page is hidden from individual site Settings and only appears at
+	 * Network Admin → Settings → GatherPress. On single-site installs it
+	 * continues to appear in the normal per-site Settings UI.
 	 *
 	 * @param array $sub_pages An associative array of existing sub-pages.
 	 * @return array Modified array of sub-pages including the GatherPress Alpha sub-page.
 	 */
 	public function setup_sub_page( $sub_pages ): array {
+		if ( is_multisite() && ! is_network_admin() ) {
+			return $sub_pages;
+		}
+
 		$sub_pages['alpha'] = array(
 			'name'     => __( 'Alpha', 'gatherpress-alpha' ),
 			'priority' => 10,
