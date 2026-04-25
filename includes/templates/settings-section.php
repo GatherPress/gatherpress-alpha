@@ -72,12 +72,12 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 		<li><?php esc_html_e( 'Remove old options after successful migration', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
-	<p><strong><?php esc_html_e( 'Venue Geodata Backfilled:', 'gatherpress-alpha' ); ?></strong></p>
-	<p><?php esc_html_e( 'Venues now expose the WordPress Geodata standard so other plugins (like Simple Location) can read venue coordinates directly. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<p><strong><?php esc_html_e( 'Venue Information Split Into Individual Meta Keys:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'Venue address, phone, website, and coordinates are now stored as individual post meta keys instead of a single JSON blob, so they can be bound to blocks via core/post-meta block bindings. This migration will:', 'gatherpress-alpha' ); ?></p>
 	<ul style="margin-left: 20px;">
-		<li><?php esc_html_e( 'Derive geo_latitude, geo_longitude, and geo_address from each venue\'s existing information', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Set geo_public to 1 for published venues and 0 for all other statuses', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Apply to the built-in gatherpress_venue post type only — custom venue post types are not touched', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Decode the gatherpress_venue_information JSON for each venue', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Write each non-empty field to its own meta key: gatherpress_address, gatherpress_latitude, gatherpress_longitude, gatherpress_phone, gatherpress_website', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Remove the original JSON blob once the individual fields are written', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
 	<p><em><?php esc_html_e( 'This migration will automatically update all saved block content, settings, templates, and reusable blocks in your database.', 'gatherpress-alpha' ); ?></em></p>
