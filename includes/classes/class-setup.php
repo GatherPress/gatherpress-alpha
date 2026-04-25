@@ -1083,48 +1083,76 @@ class Setup {
 		$this->replace_events_list_block();
 		$this->replace_venue_block();
 		$this->replace_online_event_block();
-		$this->backfill_venue_geodata();
+		$this->migrate_venue_information_to_flat();
 	}
 
 	/**
-	 * Backfills WordPress Geodata standard meta for existing gatherpress_venue posts.
+	 * Migrates the JSON `gatherpress_venue_information` meta blob into individual
+	 * venue meta keys.
 	 *
-	 * GatherPress 0.34.0 introduced derived `geo_latitude`, `geo_longitude`, `geo_address`,
-	 * and `geo_public` post meta, written from `gatherpress_venue_information` JSON on
-	 * every subsequent save. This method pre-populates those keys for existing venues
-	 * so they don't have to be resaved manually to appear to plugins that consume the
-	 * WordPress Geodata standard (https://codex.wordpress.org/Geodata).
+	 * Pre-0.34.0 GatherPress stored the venue address, phone, website, latitude,
+	 * and longitude as a JSON-encoded string under `gatherpress_venue_information`.
 	 *
-	 * Limited to the built-in `gatherpress_venue` post type. Companion plugins that
-	 * register their own venue post types should ship their own backfill.
+	 * In 0.34.0 those become individual editor-writable meta keys
+	 * (`gatherpress_full_address`, `gatherpress_phone_number`, `gatherpress_website`,
+	 * `gatherpress_latitude`, `gatherpress_longitude`) so they can be bound to
+	 * blocks via `core/post-meta` block bindings without an intermediate JSON
+	 * parse step.
+	 *
+	 * For each venue post that still carries the JSON blob this method:
+	 * - Decodes the JSON,
+	 * - Writes any non-empty fields to the new individual meta keys
+	 *   (without overwriting values the new editor has already saved),
+	 * - Deletes the original JSON blob.
 	 *
 	 * @return void
 	 */
-	private function backfill_venue_geodata(): void {
-		if ( ! class_exists( Venue::class ) ) {
-			return;
-		}
+	private function migrate_venue_information_to_flat(): void {
+		global $wpdb;
 
-		$venue = Venue::get_instance();
+		// Map JSON keys to the new individual meta keys.
+		$field_map = array(
+			'fullAddress' => 'gatherpress_address',
+			'latitude'    => 'gatherpress_latitude',
+			'longitude'   => 'gatherpress_longitude',
+			'phoneNumber' => 'gatherpress_phone',
+			'website'     => 'gatherpress_website',
+		);
 
-		if ( ! method_exists( $venue, 'set_geodata' ) ) {
-			return;
-		}
-
-		$venue_ids = get_posts(
-			array(
-				'post_type'              => 'gatherpress_venue',
-				'post_status'            => array( 'publish', 'draft', 'pending', 'private', 'future', 'trash' ),
-				'posts_per_page'         => -1,
-				'fields'                 => 'ids',
-				'no_found_rows'          => true,
-				'update_post_term_cache' => false,
-				'update_post_meta_cache' => false,
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				'gatherpress_venue_information'
 			)
 		);
 
-		foreach ( $venue_ids as $venue_id ) {
-			$venue->set_geodata( (int) $venue_id );
+		foreach ( $rows as $row ) {
+			$post_id = (int) $row->post_id;
+			$decoded = json_decode( (string) $row->meta_value, true );
+
+			if ( is_array( $decoded ) ) {
+				foreach ( $field_map as $json_key => $meta_key ) {
+					if ( ! isset( $decoded[ $json_key ] ) ) {
+						continue;
+					}
+
+					$value = (string) $decoded[ $json_key ];
+
+					if ( '' === $value ) {
+						continue;
+					}
+
+					// Don't overwrite values the new editor has already written.
+					if ( '' !== (string) get_post_meta( $post_id, $meta_key, true ) ) {
+						continue;
+					}
+
+					update_post_meta( $post_id, $meta_key, $value );
+				}
+			}
+
+			delete_post_meta( $post_id, 'gatherpress_venue_information' );
 		}
 	}
 
