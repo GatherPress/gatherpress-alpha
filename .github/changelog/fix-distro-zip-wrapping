@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+Distro zip now extracts as `gatherpress-alpha/` instead of `gatherpress-alpha.<version>/` so WordPress installs the plugin to the correct directory and Alpha's version-match guard against core GatherPress works as expected. wp-scripts plugin-zip was producing a flat zip without the wrapping folder; the release workflow now constructs the zip manually with the expected layout.
