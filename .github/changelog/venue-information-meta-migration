@@ -1,0 +1,4 @@
+Significance: patch
+Type: added
+
+Migrate the legacy `gatherpress_venue_information` JSON blob into the individual post-meta keys (address, phone, website, latitude, longitude, plus the structured-address fields) that GatherPress 0.34.0 expects for block bindings. [#32]
