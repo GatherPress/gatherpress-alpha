@@ -162,8 +162,16 @@ jobs:
             --body "Automated rollup of \`.github/changelog/*\` entries into \`CHANGELOG.md\` as part of the ${VERSION} release. Merge after confirming the rendered release body at https://github.com/${GITHUB_REPOSITORY}/releases/tag/${VERSION} looks right." \
             --label "Skip Changelog"
 
-  # Build the distro zip via wp-scripts plugin-zip (already in package.json).
-  # Same artifact for both pre-release and stable paths.
+  # Build the distro zip manually instead of relying on wp-scripts plugin-zip:
+  # wp-scripts in this repo produces a flat zip with files at root (no wrapping
+  # `gatherpress-alpha/` directory), which causes WordPress's plugin installer
+  # to fall back to the outer zip filename — meaning users end up with a
+  # `gatherpress-alpha.0.34.0/` plugin folder instead of `gatherpress-alpha/`,
+  # breaking the version-match guard against core GatherPress.
+  #
+  # Manual construction is bulletproof and matches the structure WordPress
+  # expects: outer file `gatherpress-alpha.<version>.zip`, inner wrapping
+  # directory `gatherpress-alpha/`, plugin files inside.
   build:
     name: Build distro zip
     needs: prepare
@@ -176,26 +184,42 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install JS deps
-        run: npm install
-
       - name: Build distro zip
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          # wp-scripts plugin-zip writes ./gatherpress-alpha.zip with a top-level
-          # gatherpress-alpha/ directory inside (set by package.json "name").
-          # Rename the outer file to `gatherpress-alpha.<version>.zip` so users
-          # downloading from the GitHub release see which build they got, while
-          # the internal layout stays exactly what WP expects.
-          npm run plugin-zip
-          mv gatherpress-alpha.zip "gatherpress-alpha.${VERSION}.zip"
+          PLUGIN_SLUG="gatherpress-alpha"
+          ZIP_NAME="${PLUGIN_SLUG}.${VERSION}.zip"
+
+          # Stage just the distribution files into a single wrapper directory.
+          # Anything that's developer-facing (CI configs, lockfiles, dev docs,
+          # vendor/, etc.) is intentionally left out — see .distignore for the
+          # human-readable list that this mirrors.
+          mkdir -p "/tmp/package/${PLUGIN_SLUG}"
+          cp gatherpress-alpha.php "/tmp/package/${PLUGIN_SLUG}/"
+          cp uninstall.php "/tmp/package/${PLUGIN_SLUG}/"
+          cp -r includes "/tmp/package/${PLUGIN_SLUG}/"
+          cp -r public "/tmp/package/${PLUGIN_SLUG}/"
+
+          # Zip the wrapper directory so the archive has the expected layout:
+          # gatherpress-alpha/                   ← top-level entry inside the zip
+          # gatherpress-alpha/gatherpress-alpha.php
+          # gatherpress-alpha/includes/...
+          # gatherpress-alpha/public/...
+          # gatherpress-alpha/uninstall.php
+          cd /tmp/package
+          zip -r "${GITHUB_WORKSPACE}/${ZIP_NAME}" "${PLUGIN_SLUG}/"
+          cd "${GITHUB_WORKSPACE}"
+
+          # Sanity-check: the zip should have a wrapping directory, not files
+          # at root. Fail loudly if WordPress would mis-install this.
+          if unzip -l "${ZIP_NAME}" | awk 'NR>3 && NF==4 && $4!="" {n=split($4,a,"/"); if (a[1]!="'"${PLUGIN_SLUG}"'") exit 1}'; then
+            echo "Zip layout OK — all entries are under ${PLUGIN_SLUG}/."
+          else
+            echo "::error::Zip ${ZIP_NAME} has entries outside the ${PLUGIN_SLUG}/ wrapper. WordPress would mis-install this."
+            unzip -l "${ZIP_NAME}" | head -20
+            exit 1
+          fi
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
