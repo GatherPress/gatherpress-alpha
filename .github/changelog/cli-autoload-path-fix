@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+Fix the `Commands\\Cli` autoload path so `wp gatherpress alpha fix` and other WP-CLI commands resolve correctly. [#34]
