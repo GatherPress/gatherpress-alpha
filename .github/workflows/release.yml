@@ -1,0 +1,231 @@
+name: Release
+
+# Tag-driven release automation.
+#
+# Pushing a tag like `0.34.0` cuts a stable release: distro zip is built and
+# attached to a GitHub Release, the .github/changelog/* entries get rolled up
+# into CHANGELOG.md under a new version header (and auto-PR'd back to main
+# for review).
+#
+# Pushing a tag like `0.34.0-alpha.1`, `-beta.1`, or `-rc.1` cuts a pre-release:
+# the same rolled-up changelog body that would ship at stable release shows
+# up on a GitHub Pre-Release (marked NOT-latest), but the rollup is computed
+# in an ephemeral checkout — no commit, no PR, no entry files deleted.
+#
+# Unlike the main gatherpress workflow, this one does NOT deploy to
+# wordpress.org — gatherpress-alpha is a developer companion plugin
+# distributed only via GitHub releases until the 1.0.0 milestone.
+#
+# Release-manager docs: docs/release-process.md.
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: read
+
+jobs:
+  # Classify the tag so downstream jobs know which path to take.
+  prepare:
+    name: Prepare release context
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.context.outputs.version }}
+      is_prerelease: ${{ steps.context.outputs.is_prerelease }}
+    steps:
+      - name: Classify tag
+        id: context
+        run: |
+          version="${GITHUB_REF_NAME}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          # Pre-release suffix detection: alpha.N, beta.N, rc.N (per SemVer).
+          if [[ "${version}" =~ -(alpha|beta|rc)\. ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${version} is a pre-release."
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "Tag ${version} is a stable release."
+          fi
+
+  # Always runs: aggregate `.github/changelog/*` into a new [X.Y.Z] section
+  # and capture the section text as the release body. For stable tags we
+  # additionally commit the rollup back via an auto-PR; for pre-releases the
+  # working-dir changes evaporate when the job ends, so the entry files stay
+  # intact for the eventual stable release.
+  rollup:
+    name: Roll up changelog
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_body: ${{ steps.extract.outputs.release_body }}
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: composer
+
+      - name: Composer install
+        env:
+          COMPOSER_PROCESS_TIMEOUT: 0
+          COMPOSER_NO_INTERACTION: 1
+          COMPOSER_NO_AUDIT: 1
+        run: composer install --optimize-autoloader --prefer-dist
+
+      - name: Roll up changelog entries
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          # On pre-releases this modifies the ephemeral working dir; the
+          # changes never get pushed because the commit step below is gated
+          # on the stable path.
+          vendor/bin/changelogger write \
+            --use-version="${VERSION}" \
+            --release-date="$(date +%Y-%m-%d)" \
+            --add-pr-num \
+            --deduplicate=-1 \
+            --yes
+
+      - name: Extract release body from CHANGELOG.md
+        id: extract
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
+        run: |
+          # Single-pass capture between the new [X.Y.Z] header and the next
+          # ## header. Suppresses leading blanks until first non-blank, buffers
+          # trailing blanks so they never flush.
+          section="$(awk -v ver="${VERSION}" '
+            $0 ~ "^## \\[" ver "\\]" { capture = 1; next }
+            /^## \[/ && capture { exit }
+            capture {
+              if ($0 ~ /[^[:space:]]/) {
+                seen = 1
+                if (buffered) { printf "%s", buffered; buffered = "" }
+                print
+              } else if (seen) {
+                buffered = buffered $0 ORS
+              }
+            }
+          ' CHANGELOG.md)"
+
+          if [[ -z "$section" ]]; then
+            if [[ "${IS_PRERELEASE}" == "true" ]]; then
+              section="_No changelog entries queued yet for this pre-release._"
+            else
+              echo "::error::Rolled-up CHANGELOG.md does not contain a [${VERSION}] section. Did the changelogger write command succeed? .github/changelog/ may have been empty at tag time."
+              exit 1
+            fi
+          fi
+
+          {
+            echo "release_body<<EOF_BODY"
+            echo "$section"
+            echo "EOF_BODY"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open PR with rolled-up changelog (stable only)
+        if: needs.prepare.outputs.is_prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          branch="release/${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${branch}"
+          git add CHANGELOG.md .github/changelog/
+          git commit -m "Roll up changelog for ${VERSION}"
+          git push origin "${branch}"
+
+          gh pr create \
+            --base main \
+            --head "${branch}" \
+            --title "Roll up changelog for ${VERSION}" \
+            --body "Automated rollup of \`.github/changelog/*\` entries into \`CHANGELOG.md\` as part of the ${VERSION} release. Merge after confirming the rendered release body at https://github.com/${GITHUB_REPOSITORY}/releases/tag/${VERSION} looks right." \
+            --label "Skip Changelog"
+
+  # Build the distro zip via wp-scripts plugin-zip (already in package.json).
+  # Same artifact for both pre-release and stable paths.
+  build:
+    name: Build distro zip
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install JS deps
+        run: npm install
+
+      - name: Build distro zip
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          # wp-scripts plugin-zip writes ./gatherpress-alpha.zip with a top-level
+          # gatherpress-alpha/ directory inside (set by package.json "name").
+          # Rename the outer file to `gatherpress-alpha.<version>.zip` so users
+          # downloading from the GitHub release see which build they got, while
+          # the internal layout stays exactly what WP expects.
+          npm run plugin-zip
+          mv gatherpress-alpha.zip "gatherpress-alpha.${VERSION}.zip"
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: distro-zip
+          path: gatherpress-alpha.${{ needs.prepare.outputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # Create the GitHub Release (or Pre-Release) with the zip attached and the
+  # rolled-up changelog section as the body.
+  release:
+    name: Create GitHub release
+    needs: [prepare, build, rollup]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: distro-zip
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: ${{ needs.prepare.outputs.version }}
+          body: ${{ needs.rollup.outputs.release_body }}
+          files: gatherpress-alpha.${{ needs.prepare.outputs.version }}.zip
+          prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+          make_latest: ${{ needs.prepare.outputs.is_prerelease == 'false' && 'true' || 'false' }}
+          fail_on_unmatched_files: true

@@ -1,0 +1,33 @@
+# Files and directories excluded from the distributable plugin zip.
+
+# Dotfiles + IDE / OS junk
+.DS_Store
+.git
+.gitignore
+.gitattributes
+.nvmrc
+.vscode
+.editorconfig
+
+# CI + repo metadata (developer-facing, not shipped to users)
+.github
+
+# Build tooling
+composer.json
+composer.lock
+package.json
+package-lock.json
+node_modules
+vendor
+
+# Developer-facing markdown
+CHANGELOG.md
+CONTRIBUTING.md
+README.md
+docs
+
+# Tests / fixtures
+tests
+test
+phpunit.xml
+phpunit.xml.dist
