@@ -199,7 +199,10 @@ jobs:
           cp gatherpress-alpha.php "/tmp/package/${PLUGIN_SLUG}/"
           cp uninstall.php "/tmp/package/${PLUGIN_SLUG}/"
           cp -r includes "/tmp/package/${PLUGIN_SLUG}/"
-          cp -r public "/tmp/package/${PLUGIN_SLUG}/"
+          # public/ is optional: it only ever held front-end assets and may be
+          # absent (e.g. after the injected fonts dir was removed). Guard the
+          # copy so the build doesn't fail when there are no public assets.
+          [ -d public ] && cp -r public "/tmp/package/${PLUGIN_SLUG}/" || true
 
           # Zip the wrapper directory so the archive has the expected layout:
           # gatherpress-alpha/                   ← top-level entry inside the zip
