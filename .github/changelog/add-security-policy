@@ -1,0 +1,4 @@
+Significance: patch
+Type: added
+
+Add `SECURITY.md` documenting the vulnerability reporting process.
