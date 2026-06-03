@@ -198,6 +198,7 @@ jobs:
           mkdir -p "/tmp/package/${PLUGIN_SLUG}"
           cp gatherpress-alpha.php "/tmp/package/${PLUGIN_SLUG}/"
           cp uninstall.php "/tmp/package/${PLUGIN_SLUG}/"
+          cp SECURITY.md "/tmp/package/${PLUGIN_SLUG}/"
           cp -r includes "/tmp/package/${PLUGIN_SLUG}/"
           # public/ is optional: it only ever held front-end assets and may be
           # absent (e.g. after the injected fonts dir was removed). Guard the
@@ -209,6 +210,7 @@ jobs:
           # gatherpress-alpha/gatherpress-alpha.php
           # gatherpress-alpha/includes/...
           # gatherpress-alpha/public/...
+          # gatherpress-alpha/SECURITY.md
           # gatherpress-alpha/uninstall.php
           cd /tmp/package
           zip -r "${GITHUB_WORKSPACE}/${ZIP_NAME}" "${PLUGIN_SLUG}/"

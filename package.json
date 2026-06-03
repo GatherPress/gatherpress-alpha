@@ -1,5 +1,13 @@
 {
 	"name": "gatherpress-alpha",
+	"files": [
+		"gatherpress-alpha.php",
+		"uninstall.php",
+		"includes",
+		"public",
+		"CHANGELOG.md",
+		"SECURITY.md"
+	],
 	"scripts": {
 		"plugin-zip": "wp-scripts plugin-zip"
 	},
