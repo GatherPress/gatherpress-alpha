@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+Fix the self-closing `gatherpress/venue` block migration silently skipping blocks that carry non-default attributes (e.g. `mapZoomLevel`, `mapType`), by broadening the SQL pre-filter and letting the existing parsed-block check do the real matching.

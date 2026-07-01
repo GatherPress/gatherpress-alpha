@@ -1372,12 +1372,17 @@ class Setup {
 		$post_types   = array( 'gatherpress_event', 'gatherpress_venue' );
 		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
 
-		// Find posts containing the old self-closing venue block.
+		// Find posts that reference a gatherpress/venue block at all. This is only
+		// a coarse candidate filter, it deliberately doesn't try to match the
+		// self-closing form directly, since a self-closing block with non-default
+		// attributes (e.g. `{"mapZoomLevel":14}`) breaks up the `venue /-->`
+		// substring. The actual self-closing check happens below, on the parsed
+		// blocks, where `empty( $block['innerBlocks'] )` is unaffected by attributes.
 		$query = $wpdb->prepare(
 			"SELECT ID, post_content FROM {$wpdb->posts}
 			WHERE post_type IN ({$placeholders})
 			AND post_content LIKE %s",
-			array_merge( $post_types, array( '%gatherpress/venue /-->%' ) )
+			array_merge( $post_types, array( '%gatherpress/venue%' ) )
 		);
 
 		$posts = $wpdb->get_results( $query );
