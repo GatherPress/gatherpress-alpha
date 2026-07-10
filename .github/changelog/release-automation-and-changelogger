@@ -1,4 +1,0 @@
-Significance: minor
-Type: added
-
-Adopt the Jetpack changelogger workflow with per-PR `.github/changelog/*` entry files and a rolled-up `CHANGELOG.md`. Add tag-driven release automation that builds a versioned distro zip and attaches it to a GitHub Release (or Pre-Release for alpha/beta/rc tags). Backfills release history from 0.29.0. See `docs/release-process.md`.
