@@ -1,4 +1,0 @@
-Significance: patch
-Type: added
-
-Migrate legacy venue address data into the WordPress Geodata standard meta keys (`geo_latitude` / `geo_longitude` / `geo_address`) that core GatherPress 0.34.0 now publishes. [#30]

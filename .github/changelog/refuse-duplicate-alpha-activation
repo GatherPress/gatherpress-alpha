@@ -1,4 +1,0 @@
-Significance: patch
-Type: fixed
-
-Refuse activation when a duplicate GatherPress Alpha folder is on disk, mirroring the coexistence guard core GatherPress ships. Prevents silent class collisions when WordPress includes both copies during activation. [#33]

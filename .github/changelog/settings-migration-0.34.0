@@ -1,4 +1,0 @@
-Significance: patch
-Type: added
-
-Add settings migration so legacy GatherPress settings storage upgrades cleanly into the 0.34.0 flat / config-driven Settings API. [#29]

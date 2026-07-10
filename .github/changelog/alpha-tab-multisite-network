@@ -1,4 +1,0 @@
-Significance: patch
-Type: changed
-
-Only render the Alpha tab on the Network admin when WordPress is running in multisite mode. Single-site installs see it under the regular Events settings as before. [#31]
