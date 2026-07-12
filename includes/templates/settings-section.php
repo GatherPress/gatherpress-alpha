@@ -10,6 +10,47 @@
 
 // Exit if accessed directly.
 defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
+
+$gatherpress_alpha_last_version = get_option( 'gatherpress_alpha_last_version', null );
+
+/**
+ * Whether the fix for a given version is still pending on this site.
+ *
+ * Mirrors Setup::should_run_fix(): with no recorded run every fix is pending;
+ * after an unstable run (e.g. 0.34.0-beta.1) fixes >= the base version are
+ * pending; after a stable run only fixes > the base version are pending.
+ *
+ * @param string $gatherpress_alpha_fix_version The version of the fix to check.
+ * @return bool True when the fix has not been applied yet.
+ */
+$gatherpress_alpha_is_pending = static function ( string $gatherpress_alpha_fix_version ) use ( $gatherpress_alpha_last_version ): bool {
+	if ( null === $gatherpress_alpha_last_version ) {
+		return true;
+	}
+
+	$gatherpress_alpha_base     = preg_replace( '/-.*$/', '', $gatherpress_alpha_last_version );
+	$gatherpress_alpha_unstable = false !== strpos( $gatherpress_alpha_last_version, '-' );
+
+	if ( $gatherpress_alpha_unstable ) {
+		return version_compare( $gatherpress_alpha_fix_version, $gatherpress_alpha_base, '>=' );
+	}
+
+	return version_compare( $gatherpress_alpha_fix_version, $gatherpress_alpha_base, '>' );
+};
+
+/**
+ * Renders the Applied/Pending badge for a version's fix.
+ *
+ * @param bool $gatherpress_alpha_pending Whether the fix is pending.
+ * @return void
+ */
+$gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): void {
+	if ( $gatherpress_alpha_pending ) {
+		echo '<span style="background: #f0b849; color: #1d2327; font-size: 0.75em; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">' . esc_html__( 'Pending', 'gatherpress-alpha' ) . '</span>';
+	} else {
+		echo '<span style="background: #00a32a; color: #fff; font-size: 0.75em; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-left: 8px; vertical-align: middle;">' . esc_html__( 'Applied', 'gatherpress-alpha' ) . '</span>';
+	}
+};
 ?>
 
 <style>
@@ -26,6 +67,21 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 	.gatherpress-message {
 		font-weight: bold;
 	}
+	.gatherpress-alpha-version {
+		background: #f9f9f9;
+		border-left: 4px solid #0073aa;
+		padding: 12px;
+		margin: 16px 0;
+	}
+	.gatherpress-alpha-version > summary {
+		cursor: pointer;
+		font-size: 1.05em;
+		font-weight: 600;
+	}
+	.gatherpress-alpha-version ul {
+		margin-left: 20px;
+		list-style: disc;
+	}
 </style>
 <h2>
 	<?php esc_html_e( 'Compatibility Updates', 'gatherpress-alpha' ); ?>
@@ -40,12 +96,40 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 		<span id="copy-feedback" style="margin-left: 10px; color: #008a20; display: none; font-weight: bold;"><?php esc_html_e( 'Copied!', 'gatherpress-alpha' ); ?></span>
 	</p>
 </div>
-<div style="background: #f9f9f9; border-left: 4px solid #0073aa; padding: 12px; margin: 16px 0;">
-	<h3 style="margin-top: 0;"><?php esc_html_e( 'Version 0.34.* Breaking Changes', 'gatherpress-alpha' ); ?></h3>
+<p>
+	<?php
+	if ( null !== $gatherpress_alpha_last_version ) {
+		printf(
+			/* translators: %s: version number. */
+			esc_html__( 'Compatibility updates last ran at version %s. Versions marked Pending will be applied on the next run.', 'gatherpress-alpha' ),
+			'<strong>' . esc_html( $gatherpress_alpha_last_version ) . '</strong>' // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		);
+	} else {
+		esc_html_e( 'Compatibility updates have not been run on this site yet. All versions below are pending and will be applied on the next run.', 'gatherpress-alpha' );
+	}
+	?>
+</p>
+
+<details class="gatherpress-alpha-version" open>
+	<summary><?php esc_html_e( 'Version 0.35.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Icon Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The GatherPress Icon block has been replaced with the WordPress core Icon block introduced in WordPress 7.0. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Convert all GatherPress Icon blocks to core Icon blocks across every post type, including templates, template parts, reusable blocks, and block widgets', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Map each icon to its closest equivalent in the WordPress icon library', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Preserve icon size, color, alignment, anchor, custom classes, and margins', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Update icons saved inside RSVP block status templates', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Requires WordPress 7.0 or newer. Icon blocks that are not migrated will show a "missing block" notice in the editor once the GatherPress Icon block is removed.', 'gatherpress-alpha' ); ?></em></p>
+</details>
+
+<details class="gatherpress-alpha-version">
+	<summary><?php esc_html_e( 'Version 0.34.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.34.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Events List Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The deprecated Events List block has been replaced with the Event Query Loop, a variation of the core Query Loop block. This migration will:', 'gatherpress-alpha' ); ?></p>
-	<ul style="margin-left: 20px;">
+	<ul>
 		<li><?php esc_html_e( 'Convert all Events List blocks to Event Query Loop blocks', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Preserve event type (upcoming/past), number of events, date format, and display options', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Migrate topic and venue taxonomy filters', 'gatherpress-alpha' ); ?></li>
@@ -53,19 +137,19 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 	<p><strong><?php esc_html_e( 'Venue Block Updated:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The Venue block now uses inner blocks for venue details. This migration will:', 'gatherpress-alpha' ); ?></p>
-	<ul style="margin-left: 20px;">
+	<ul>
 		<li><?php esc_html_e( 'Replace self-closing Venue blocks with the new inner block structure (address, phone, website, map)', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Automatically use the Online Event block for events with an online venue', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
 	<p><strong><?php esc_html_e( 'Online Event Block Updated:', 'gatherpress-alpha' ); ?></strong></p>
-	<ul style="margin-left: 20px;">
+	<ul>
 		<li><?php esc_html_e( 'Replace self-closing Online Event blocks with the new inner block structure (icon and event link)', 'gatherpress-alpha' ); ?></li>
 	</ul>
 
 	<p><strong><?php esc_html_e( 'Settings Consolidated:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'Plugin settings have been refactored into a single flat option for simplicity. This migration will:', 'gatherpress-alpha' ); ?></p>
-	<ul style="margin-left: 20px;">
+	<ul>
 		<li><?php esc_html_e( 'Merge gatherpress_general and gatherpress_leadership options into gatherpress_settings', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Flatten nested section/option structure into a single key-value store', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Rename URL keys: events → events_url, venues → venues_url, topics → topics_url', 'gatherpress-alpha' ); ?></li>
@@ -74,14 +158,72 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 	<p><strong><?php esc_html_e( 'Venue Information Split Into Individual Meta Keys:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'Venue address, phone, website, and coordinates are now stored as individual post meta keys instead of a single JSON blob, so they can be bound to blocks via core/post-meta block bindings. This migration will:', 'gatherpress-alpha' ); ?></p>
-	<ul style="margin-left: 20px;">
+	<ul>
 		<li><?php esc_html_e( 'Decode the gatherpress_venue_information JSON for each venue', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Write each non-empty field to its own meta key: gatherpress_address, gatherpress_latitude, gatherpress_longitude, gatherpress_phone, gatherpress_website', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Remove the original JSON blob once the individual fields are written', 'gatherpress-alpha' ); ?></li>
 	</ul>
+</details>
 
-	<p><em><?php esc_html_e( 'This migration will automatically update all saved block content, settings, templates, and reusable blocks in your database.', 'gatherpress-alpha' ); ?></em></p>
-</div>
+<details class="gatherpress-alpha-version">
+	<summary><?php esc_html_e( 'Version 0.33.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.33.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Add to Calendar Block Updated:', 'gatherpress-alpha' ); ?></strong></p>
+	<ul>
+		<li><?php esc_html_e( 'Replace self-closing Add to Calendar blocks with the new inner block structure', 'gatherpress-alpha' ); ?></li>
+	</ul>
+
+	<p><strong><?php esc_html_e( 'RSVP Form Blocks Replaced:', 'gatherpress-alpha' ); ?></strong></p>
+	<ul>
+		<li><?php esc_html_e( 'Convert the deprecated RSVP Guest Count Input and RSVP Anonymous Checkbox blocks to the new Form Field block', 'gatherpress-alpha' ); ?></li>
+	</ul>
+
+	<p><strong><?php esc_html_e( 'CSS Class Names Updated:', 'gatherpress-alpha' ); ?></strong></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename modal, form field, and RSVP state classes in saved block content to the new naming conventions (for example gatherpress--open-modal becomes gatherpress-modal--trigger-open)', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Update class names inside saved RSVP block status templates', 'gatherpress-alpha' ); ?></li>
+	</ul>
+</details>
+
+<details class="gatherpress-alpha-version">
+	<summary><?php esc_html_e( 'Version 0.32.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.32.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'RSVP Blocks Updated:', 'gatherpress-alpha' ); ?></strong></p>
+	<ul>
+		<li><?php esc_html_e( 'Replace self-closing RSVP and RSVP Response blocks in event content with the new inner block structure', 'gatherpress-alpha' ); ?></li>
+	</ul>
+</details>
+
+<details class="gatherpress-alpha-version">
+	<summary><?php esc_html_e( 'Version 0.31.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.31.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Event Datetime Meta Consolidated:', 'gatherpress-alpha' ); ?></strong></p>
+	<ul>
+		<li><?php esc_html_e( 'Add the consolidated gatherpress_datetime meta to every event and resave stored datetimes', 'gatherpress-alpha' ); ?></li>
+	</ul>
+</details>
+
+<details class="gatherpress-alpha-version">
+	<summary><?php esc_html_e( 'Version 0.30.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.30.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'RSVP Storage Moved to Comments:', 'gatherpress-alpha' ); ?></strong></p>
+	<ul>
+		<li><?php esc_html_e( 'Migrate all RSVPs from the custom gatherpress_rsvps table to the WordPress comments system, preserving original timestamps', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Drop the custom table after migration', 'gatherpress-alpha' ); ?></li>
+	</ul>
+</details>
+
+<details class="gatherpress-alpha-version">
+	<summary><?php esc_html_e( 'Version 0.29.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.29.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Plugin Prefix Renamed (gp_ to gatherpress_):', 'gatherpress-alpha' ); ?></strong></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename the custom events and RSVPs tables, the event and venue post types, and the topic and venue taxonomies', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Rename post meta, user meta, and all plugin options to the gatherpress_ prefix', 'gatherpress-alpha' ); ?></li>
+	</ul>
+</details>
+
+<p><em><?php esc_html_e( 'These migrations automatically update saved block content, settings, templates, and reusable blocks in your database.', 'gatherpress-alpha' ); ?></em></p>
 <p id="gatherpress-saving" class="gatherpress-saving">
 	<span class="spinner is-active"></span>
 	<span class="gatherpress-message">

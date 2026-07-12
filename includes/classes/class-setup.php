@@ -275,6 +275,10 @@ class Setup {
 			$this->fix__0_34_0();
 		}
 
+		if ( $this->should_run_fix( '0.35.0', $last_version ) ) {
+			$this->fix__0_35_0();
+		}
+
 		// Update the stored version to current plugin version.
 		$this->set_last_run_version( GATHERPRESS_ALPHA_VERSION );
 	}
@@ -1818,5 +1822,233 @@ class Setup {
 		}
 
 		return $blocks;
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.35.0 of the plugin.
+	 *
+	 * Migrates the deprecated `gatherpress/icon` block to the WordPress core
+	 * `core/icon` block that ships with WordPress 7.0.
+	 *
+	 * @return void
+	 */
+	private function fix__0_35_0(): void {
+		$this->replace_icon_blocks();
+		$this->replace_icon_blocks_in_widgets();
+	}
+
+	/**
+	 * Maps the icon set the `gatherpress/icon` block shipped to the closest
+	 * equivalent in the WordPress 7.0 core icon library.
+	 *
+	 * Icon names in the core library are namespaced (`core/<slug>`).
+	 *
+	 * @return array Associative array of old icon => core icon name.
+	 */
+	private function get_icon_mappings(): array {
+		return array(
+			'admin-site-alt3' => 'core/external',
+			'calendar'        => 'core/calendar',
+			'clock'           => 'core/scheduled',
+			'dismiss'         => 'core/error',
+			'editor-help'     => 'core/help',
+			'groups'          => 'core/people',
+			'location'        => 'core/map-marker',
+			'nametag'         => 'core/tag',
+			'phone'           => 'core/mobile',
+			'video-alt2'      => 'core/capture-video',
+			'yes-alt'         => 'core/published',
+		);
+	}
+
+	/**
+	 * Replaces `gatherpress/icon` blocks with `core/icon` in post content.
+	 *
+	 * Runs across all of wp_posts with no post type restriction: icon blocks
+	 * can live in any post type as well as templates, template parts,
+	 * navigation, and reusable blocks. The LIKE clauses are only a coarse
+	 * candidate filter; exact matching happens on the parsed blocks. Inside an
+	 * RSVP block's serializedInnerBlocks attribute the block name is stored
+	 * escaped, and the escaping differs by serializer (`gatherpress/icon`
+	 * from the JS editor, `gatherpress\/icon` after a PHP re-serialize),
+	 * so any post carrying serializedInnerBlocks is also a candidate.
+	 *
+	 * @return void
+	 */
+	private function replace_icon_blocks(): void {
+		global $wpdb;
+
+		$posts = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT ID, post_content FROM {$wpdb->posts}
+				WHERE post_content LIKE %s
+				OR ( post_content LIKE %s AND post_content LIKE %s )",
+				'%' . $wpdb->esc_like( 'gatherpress/icon' ) . '%',
+				'%serializedInnerBlocks%',
+				'%gatherpress%'
+			)
+		);
+
+		foreach ( $posts as $post ) {
+			$updated        = false;
+			$blocks         = parse_blocks( $post->post_content );
+			$updated_blocks = $this->replace_icon_blocks_recursive( $blocks, $updated );
+
+			if ( $updated ) {
+				$wpdb->update(
+					$wpdb->posts,
+					array( 'post_content' => serialize_blocks( $updated_blocks ) ),
+					array( 'ID' => $post->ID ),
+					array( '%s' ),
+					array( '%d' )
+				);
+			}
+		}
+	}
+
+	/**
+	 * Replaces `gatherpress/icon` blocks with `core/icon` in block widgets.
+	 *
+	 * Block widgets are stored in the `widget_block` option rather than
+	 * wp_posts, so they need their own pass.
+	 *
+	 * @return void
+	 */
+	private function replace_icon_blocks_in_widgets(): void {
+		$widget_blocks = get_option( 'widget_block', array() );
+
+		if ( ! is_array( $widget_blocks ) ) {
+			return;
+		}
+
+		$option_updated = false;
+
+		foreach ( $widget_blocks as $key => $widget ) {
+			if (
+				! is_array( $widget )
+				|| empty( $widget['content'] )
+				|| false === strpos( (string) $widget['content'], 'gatherpress' )
+			) {
+				continue;
+			}
+
+			$updated        = false;
+			$blocks         = parse_blocks( $widget['content'] );
+			$updated_blocks = $this->replace_icon_blocks_recursive( $blocks, $updated );
+
+			if ( $updated ) {
+				$widget_blocks[ $key ]['content'] = serialize_blocks( $updated_blocks );
+				$option_updated                   = true;
+			}
+		}
+
+		if ( $option_updated ) {
+			update_option( 'widget_block', $widget_blocks );
+		}
+	}
+
+	/**
+	 * Recursively replaces `gatherpress/icon` blocks in a parsed block tree,
+	 * including inside RSVP blocks' serializedInnerBlocks attribute.
+	 *
+	 * @param array $blocks  Array of block data.
+	 * @param bool  $updated Reference to track if any updates were made.
+	 * @return array Updated blocks array.
+	 */
+	private function replace_icon_blocks_recursive( array $blocks, bool &$updated ): array {
+		foreach ( $blocks as &$block ) {
+			if ( 'gatherpress/icon' === $block['blockName'] ) {
+				$block = $this->transform_icon_block( $block, $updated );
+			}
+
+			// RSVP blocks store per-status inner block templates as a JSON map
+			// of status => serialized block markup.
+			if ( 'gatherpress/rsvp' === $block['blockName'] && ! empty( $block['attrs']['serializedInnerBlocks'] ) ) {
+				$inner_blocks_data = json_decode( $block['attrs']['serializedInnerBlocks'], true );
+
+				if ( is_array( $inner_blocks_data ) ) {
+					$data_updated = false;
+
+					foreach ( $inner_blocks_data as $status => $serialized_blocks ) {
+						$status_updated       = false;
+						$status_blocks        = parse_blocks( $serialized_blocks );
+						$status_blocks        = $this->replace_icon_blocks_recursive( $status_blocks, $status_updated );
+
+						if ( $status_updated ) {
+							$inner_blocks_data[ $status ] = serialize_blocks( $status_blocks );
+							$data_updated                 = true;
+						}
+					}
+
+					if ( $data_updated ) {
+						$block['attrs']['serializedInnerBlocks'] = wp_json_encode( $inner_blocks_data );
+						$updated                                 = true;
+					}
+				}
+			}
+
+			// Recursively process inner blocks.
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$block['innerBlocks'] = $this->replace_icon_blocks_recursive( $block['innerBlocks'], $updated );
+			}
+		}
+
+		return $blocks;
+	}
+
+	/**
+	 * Transforms a single `gatherpress/icon` block into a `core/icon` block.
+	 *
+	 * Attribute translation:
+	 * - `icon` maps through get_icon_mappings(); an absent icon means the old
+	 *   block's `nametag` default. The new name is always written out because
+	 *   `core/icon` has no default icon and renders nothing without one.
+	 * - `iconSize` (default 24) becomes `style.dimensions.width` in px, which
+	 *   the style engine applies to the rendered svg. The old block rendered a
+	 *   square so width alone reproduces the size via the svg aspect ratio.
+	 * - `iconColor` stored a raw color value from ColorPalette and becomes
+	 *   `style.color.text` (the svg fill follows currentColor). An empty color
+	 *   meant `fill: inherit`, which matches core/icon's default, so it is
+	 *   dropped.
+	 * - `align`, `anchor`, `className`, and `style.spacing.margin` are
+	 *   supported by both blocks and carry over untouched.
+	 *
+	 * Icons outside the set the old block shipped are left unmigrated.
+	 *
+	 * @param array $block   The parsed gatherpress/icon block.
+	 * @param bool  $updated Reference to track if the block was transformed.
+	 * @return array The transformed block, or the original when unmappable.
+	 */
+	private function transform_icon_block( array $block, bool &$updated ): array {
+		$mappings = $this->get_icon_mappings();
+		$attrs    = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+		$old_icon = ! empty( $attrs['icon'] ) ? (string) $attrs['icon'] : 'nametag';
+
+		if ( ! isset( $mappings[ $old_icon ] ) ) {
+			return $block;
+		}
+
+		$style = isset( $attrs['style'] ) && is_array( $attrs['style'] ) ? $attrs['style'] : array();
+
+		$size                         = ! empty( $attrs['iconSize'] ) ? (int) $attrs['iconSize'] : 24;
+		$style['dimensions']          = isset( $style['dimensions'] ) && is_array( $style['dimensions'] ) ? $style['dimensions'] : array();
+		$style['dimensions']['width'] = $size . 'px';
+
+		if ( ! empty( $attrs['iconColor'] ) ) {
+			$style['color']         = isset( $style['color'] ) && is_array( $style['color'] ) ? $style['color'] : array();
+			$style['color']['text'] = (string) $attrs['iconColor'];
+		}
+
+		unset( $attrs['iconSize'], $attrs['iconColor'] );
+
+		$attrs['icon']  = $mappings[ $old_icon ];
+		$attrs['style'] = $style;
+
+		$block['blockName'] = 'core/icon';
+		$block['attrs']     = $attrs;
+
+		$updated = true;
+
+		return $block;
 	}
 }

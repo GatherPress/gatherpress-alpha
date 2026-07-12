@@ -1,0 +1,4 @@
+Significance: major
+Type: added
+
+Add the 0.35.0 migration replacing the deprecated `gatherpress/icon` block with the WordPress 7.0 `core/icon` block across all post types, templates, reusable blocks, block widgets, and RSVP serialized inner blocks, preserving icon choice, size, color, alignment, anchor, classes, and margins.
