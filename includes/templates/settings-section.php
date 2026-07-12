@@ -122,6 +122,15 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 		<li><?php esc_html_e( 'Update icons saved inside RSVP block status templates', 'gatherpress-alpha' ); ?></li>
 	</ul>
 	<p><em><?php esc_html_e( 'Requires WordPress 7.0 or newer. Icon blocks that are not migrated will show a "missing block" notice in the editor once the GatherPress Icon block is removed.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'Venue Map Dimensions Moved:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The Venue Map block now uses the WordPress core dimensions support: width and height are stored as CSS values in the block\'s style attribute and edited through the core Dimensions panel. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Convert saved numeric width and height values on Venue Map blocks to the new format across every post type, including templates, template parts, reusable blocks, and block widgets', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Drop stored "auto" (zero) values — an absent dimension now means auto', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave aspect ratio, zoom, and all other map settings untouched', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Unmigrated blocks keep rendering at their saved size — GatherPress reads the old attributes as a fallback — but their width and height will not appear in the editor\'s Dimensions panel until they are migrated or edited.', 'gatherpress-alpha' ); ?></em></p>
 </details>
 
 <details class="gatherpress-alpha-version">
