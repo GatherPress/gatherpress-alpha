@@ -41,6 +41,19 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 	</p>
 </div>
 <div style="background: #f9f9f9; border-left: 4px solid #0073aa; padding: 12px; margin: 16px 0;">
+	<h3 style="margin-top: 0;"><?php esc_html_e( 'Version 0.35.* Breaking Changes', 'gatherpress-alpha' ); ?></h3>
+
+	<p><strong><?php esc_html_e( 'Icon Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The GatherPress Icon block has been replaced with the WordPress core Icon block introduced in WordPress 7.0. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul style="margin-left: 20px;">
+		<li><?php esc_html_e( 'Convert all GatherPress Icon blocks to core Icon blocks across every post type, including templates, template parts, reusable blocks, and block widgets', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Map each icon to its closest equivalent in the WordPress icon library', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Preserve icon size, color, alignment, anchor, custom classes, and margins', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Update icons saved inside RSVP block status templates', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Requires WordPress 7.0 or newer. Icon blocks that are not migrated will show a "missing block" notice in the editor once the GatherPress Icon block is removed.', 'gatherpress-alpha' ); ?></em></p>
+</div>
+<div style="background: #f9f9f9; border-left: 4px solid #0073aa; padding: 12px; margin: 16px 0;">
 	<h3 style="margin-top: 0;"><?php esc_html_e( 'Version 0.34.* Breaking Changes', 'gatherpress-alpha' ); ?></h3>
 
 	<p><strong><?php esc_html_e( 'Events List Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
