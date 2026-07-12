@@ -16,6 +16,13 @@ name: Release
 # wordpress.org — gatherpress-alpha is a developer companion plugin
 # distributed only via GitHub releases until the 1.0.0 milestone.
 #
+# The workflow can also be dispatched with a version input instead of
+# pushing a tag (GatherPress/gatherpress#1921): it verifies the version
+# matches the `Version:` header on main and the release step creates the
+# tag itself. The core repo's Release workflow uses this to cut the
+# lockstep alpha release automatically when a cross-repo token is
+# configured there.
+#
 # Release-manager docs: docs/release-process.md.
 
 on:
@@ -23,12 +30,19 @@ on:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
       - '[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release from main (must match the Version header in gatherpress-alpha.php)'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  # Classify the tag so downstream jobs know which path to take.
+  # Classify the tag (or dispatch input) so downstream jobs know which path
+  # to take.
   prepare:
     name: Prepare release context
     runs-on: ubuntu-latest
@@ -38,19 +52,45 @@ jobs:
       version: ${{ steps.context.outputs.version }}
       is_prerelease: ${{ steps.context.outputs.is_prerelease }}
     steps:
+      - name: Checkout main (dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+
       - name: Classify tag
         id: context
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          version="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            version="${INPUT_VERSION}"
+
+            if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
+              echo "::error::'${version}' is not a valid version (X.Y.Z or X.Y.Z-alpha.N/-beta.N/-rc.N)."
+              exit 1
+            fi
+
+            # The release step creates the tag at this run's HEAD of main, so
+            # refuse to cut a release whose version doesn't match the plugin
+            # header — that means the version PR hasn't been merged yet.
+            header=$(grep -E '^ \* Version:' gatherpress-alpha.php | awk '{print $NF}')
+
+            if [[ "${header}" != "${version}" ]]; then
+              echo "::error::Version header in gatherpress-alpha.php is '${header}', not '${version}'. Merge the version PR first."
+              exit 1
+            fi
+          else
+            version="${GITHUB_REF_NAME}"
+          fi
+
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
           # Pre-release suffix detection: alpha.N, beta.N, rc.N (per SemVer).
           if [[ "${version}" =~ -(alpha|beta|rc)\. ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "Tag ${version} is a pre-release."
+            echo "Version ${version} is a pre-release."
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "Tag ${version} is a stable release."
+            echo "Version ${version} is a stable release."
           fi
 
   # Always runs: aggregate `.github/changelog/*` into a new [X.Y.Z] section
@@ -252,6 +292,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare.outputs.version }}
+          # On a workflow_dispatch run the tag does not exist yet; the action
+          # creates it at this commit (main HEAD at dispatch time). Tags
+          # created with GITHUB_TOKEN do not re-trigger this workflow's
+          # push-tag path, so there is no double run.
+          target_commitish: ${{ github.sha }}
           name: ${{ needs.prepare.outputs.version }}
           body: ${{ needs.rollup.outputs.release_body }}
           files: gatherpress-alpha.${{ needs.prepare.outputs.version }}.zip
