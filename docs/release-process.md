@@ -27,6 +27,38 @@ via GitHub releases. The distro zip's outer filename carries the version; the
 inner layout is always `gatherpress-alpha/...` so it installs cleanly under
 the right slug.
 
+## Version bump PR
+
+The lockstep version PR is automated by
+[`.github/workflows/version-bump.yml`](../.github/workflows/version-bump.yml).
+Trigger it from the Actions tab or with:
+
+```bash
+gh workflow run version-bump.yml --repo GatherPress/gatherpress-alpha -f version=0.35.0
+```
+
+It rewrites the `Version:` header in `gatherpress-alpha.php` and opens a
+`version-X.Y.Z` PR against `main` with a GitHub-signed commit. Review and
+merge it alongside the core version PR. When the core repo has a
+`GATHERPRESS_ALPHA_TOKEN` secret configured, core's own Version Bump workflow
+dispatches this one automatically.
+
+## Cutting a release without pushing a tag
+
+`release.yml` also accepts a `workflow_dispatch` with a version input:
+
+```bash
+gh workflow run release.yml --repo GatherPress/gatherpress-alpha -f version=0.35.0
+```
+
+It refuses to run unless the version matches the `Version:` header on `main`
+(i.e. the version PR has merged), then creates the tag itself at `main` HEAD
+and proceeds exactly like a tag push. This is the hook core's Release
+workflow uses to cut the lockstep Alpha release automatically when a
+cross-repo token is configured; without one, the command above is printed in
+core's release run summary for the release manager to run. Pushing a tag by
+hand (below) still works and remains equivalent.
+
 ## Pre-release flow
 
 **Use case.** You want testers running matched pre-release builds of
