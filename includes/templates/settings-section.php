@@ -131,6 +131,14 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 		<li><?php esc_html_e( 'Leave aspect ratio, zoom, and all other map settings untouched', 'gatherpress-alpha' ); ?></li>
 	</ul>
 	<p><em><?php esc_html_e( 'Unmigrated blocks keep rendering at their saved size — GatherPress reads the old attributes as a fallback — but their width and height will not appear in the editor\'s Dimensions panel until they are migrated or edited.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'Venue Inner Layout Changed:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The Venue block\'s inner layout now defaults to flow, so its contents follow the venue\'s own width in every alignment. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Remove stored constrained inner layouts from Venue blocks (saved when layout or justification controls were used under the old default) across every post type, templates, reusable blocks, and block widgets', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave alignment and all other Venue settings untouched', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Older versions never applied the venue\'s inner layout on the site frontend, so removing these keeps pages rendering exactly as they always have. Constrained content can be re-enabled per block with the layout panel\'s content-width toggle, which now works on the frontend as well.', 'gatherpress-alpha' ); ?></em></p>
 </details>
 
 <details class="gatherpress-alpha-version">

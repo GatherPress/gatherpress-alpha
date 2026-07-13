@@ -1828,17 +1828,18 @@ class Setup {
 	 * Fixes specific data issues that changed in 0.35.0 of the plugin.
 	 *
 	 * Migrates the deprecated `gatherpress/icon` block to the WordPress core
-	 * `core/icon` block that ships with WordPress 7.0, and moves the venue
-	 * map block's numeric width/height attributes to the core dimensions
-	 * support (`style.dimensions`).
+	 * `core/icon` block that ships with WordPress 7.0, moves the venue map
+	 * block's numeric width/height attributes to the core dimensions
+	 * support (`style.dimensions`), and drops stored constrained inner
+	 * layouts from venue blocks now that the block defaults to flow.
 	 *
 	 * @return void
 	 */
 	private function fix__0_35_0(): void {
 		$this->replace_icon_blocks();
 		$this->replace_icon_blocks_in_widgets();
-		$this->migrate_venue_map_dimensions();
-		$this->migrate_venue_map_dimensions_in_widgets();
+		$this->migrate_venue_blocks();
+		$this->migrate_venue_blocks_in_widgets();
 	}
 
 	/**
@@ -2057,21 +2058,23 @@ class Setup {
 	}
 
 	/**
-	 * Moves venue map dimensions to the core dimensions support in post content.
+	 * Migrates venue-family blocks in post content to their 0.35.0 shapes.
 	 *
-	 * As of GatherPress 0.35.0 the `gatherpress/venue-map` block uses core's
-	 * dimensions support: width and height live in `style.dimensions` as CSS
-	 * strings instead of the legacy numeric attributes. Runs across all of
-	 * wp_posts with no post type restriction: venue blocks can live in venue
-	 * posts, templates, template parts, patterns, and reusable blocks. The
-	 * LIKE clauses are only a coarse candidate filter; exact matching happens
-	 * on the parsed blocks. Inside an RSVP block's serializedInnerBlocks
-	 * attribute the block name is stored escaped, so any post carrying
-	 * serializedInnerBlocks is also a candidate.
+	 * Two rewrites share one sweep: the `gatherpress/venue-map` block moves
+	 * its numeric width/height attributes to core's dimensions support
+	 * (`style.dimensions` CSS strings), and the `gatherpress/venue` block
+	 * drops a stored constrained inner layout now that the block defaults
+	 * to flow. Runs across all of wp_posts with no post type restriction:
+	 * venue blocks can live in venue posts, templates, template parts,
+	 * patterns, and reusable blocks. The LIKE clauses are only a coarse
+	 * candidate filter; exact matching happens on the parsed blocks. Inside
+	 * an RSVP block's serializedInnerBlocks attribute the block name is
+	 * stored escaped, so any post carrying serializedInnerBlocks is also a
+	 * candidate.
 	 *
 	 * @return void
 	 */
-	private function migrate_venue_map_dimensions(): void {
+	private function migrate_venue_blocks(): void {
 		global $wpdb;
 
 		$posts = $wpdb->get_results(
@@ -2079,7 +2082,7 @@ class Setup {
 				"SELECT ID, post_content FROM {$wpdb->posts}
 				WHERE post_content LIKE %s
 				OR ( post_content LIKE %s AND post_content LIKE %s )",
-				'%' . $wpdb->esc_like( 'gatherpress/venue-map' ) . '%',
+				'%' . $wpdb->esc_like( 'gatherpress/venue' ) . '%',
 				'%serializedInnerBlocks%',
 				'%gatherpress%'
 			)
@@ -2088,7 +2091,7 @@ class Setup {
 		foreach ( $posts as $post ) {
 			$updated        = false;
 			$blocks         = parse_blocks( $post->post_content );
-			$updated_blocks = $this->migrate_venue_map_dimensions_recursive( $blocks, $updated );
+			$updated_blocks = $this->migrate_venue_blocks_recursive( $blocks, $updated );
 
 			if ( $updated ) {
 				$wpdb->update(
@@ -2103,14 +2106,14 @@ class Setup {
 	}
 
 	/**
-	 * Moves venue map dimensions to the core dimensions support in block widgets.
+	 * Migrates venue-family blocks in block widgets to their 0.35.0 shapes.
 	 *
 	 * Block widgets are stored in the `widget_block` option rather than
 	 * wp_posts, so they need their own pass.
 	 *
 	 * @return void
 	 */
-	private function migrate_venue_map_dimensions_in_widgets(): void {
+	private function migrate_venue_blocks_in_widgets(): void {
 		$widget_blocks = get_option( 'widget_block', array() );
 
 		if ( ! is_array( $widget_blocks ) ) {
@@ -2130,7 +2133,7 @@ class Setup {
 
 			$updated        = false;
 			$blocks         = parse_blocks( $widget['content'] );
-			$updated_blocks = $this->migrate_venue_map_dimensions_recursive( $blocks, $updated );
+			$updated_blocks = $this->migrate_venue_blocks_recursive( $blocks, $updated );
 
 			if ( $updated ) {
 				$widget_blocks[ $key ]['content'] = serialize_blocks( $updated_blocks );
@@ -2144,17 +2147,21 @@ class Setup {
 	}
 
 	/**
-	 * Recursively migrates venue map dimensions in a parsed block tree,
+	 * Recursively migrates venue-family blocks in a parsed block tree,
 	 * including inside RSVP blocks' serializedInnerBlocks attribute.
 	 *
 	 * @param array $blocks  Array of block data.
 	 * @param bool  $updated Reference to track if any updates were made.
 	 * @return array Updated blocks array.
 	 */
-	private function migrate_venue_map_dimensions_recursive( array $blocks, bool &$updated ): array {
+	private function migrate_venue_blocks_recursive( array $blocks, bool &$updated ): array {
 		foreach ( $blocks as &$block ) {
 			if ( 'gatherpress/venue-map' === $block['blockName'] ) {
 				$block = $this->transform_venue_map_block( $block, $updated );
+			}
+
+			if ( 'gatherpress/venue' === $block['blockName'] ) {
+				$block = $this->transform_venue_layout( $block, $updated );
 			}
 
 			// RSVP blocks store per-status inner block templates as a JSON map
@@ -2168,7 +2175,7 @@ class Setup {
 					foreach ( $inner_blocks_data as $status => $serialized_blocks ) {
 						$status_updated = false;
 						$status_blocks  = parse_blocks( $serialized_blocks );
-						$status_blocks  = $this->migrate_venue_map_dimensions_recursive( $status_blocks, $status_updated );
+						$status_blocks  = $this->migrate_venue_blocks_recursive( $status_blocks, $status_updated );
 
 						if ( $status_updated ) {
 							$inner_blocks_data[ $status ] = serialize_blocks( $status_blocks );
@@ -2185,7 +2192,7 @@ class Setup {
 
 			// Recursively process inner blocks.
 			if ( ! empty( $block['innerBlocks'] ) ) {
-				$block['innerBlocks'] = $this->migrate_venue_map_dimensions_recursive( $block['innerBlocks'], $updated );
+				$block['innerBlocks'] = $this->migrate_venue_blocks_recursive( $block['innerBlocks'], $updated );
 			}
 		}
 
@@ -2251,6 +2258,41 @@ class Setup {
 		$block['attrs'] = $attrs;
 
 		$updated = true;
+
+		return $block;
+	}
+
+	/**
+	 * Drops a stored constrained inner layout from a venue block.
+	 *
+	 * As of GatherPress 0.35.0 the venue block's inner layout defaults to
+	 * flow so contents track the venue's own width in every alignment. A
+	 * `layout` attribute was only serialized when someone touched the
+	 * layout or justification controls while the old constrained default
+	 * was active — and because the frontend never applied the venue's
+	 * layout classes before 0.35.0, no site ever rendered those constrained
+	 * layouts. Removing them keeps existing sites rendering exactly as they
+	 * always have; anyone who wants constrained content can re-enable it
+	 * with the layout panel's content-width toggle, which now works on the
+	 * frontend too. Layout attributes of any other type are left untouched.
+	 *
+	 * @param array $block   The parsed gatherpress/venue block.
+	 * @param bool  $updated Reference to track if the block was transformed.
+	 * @return array The transformed block.
+	 */
+	private function transform_venue_layout( array $block, bool &$updated ): array {
+		$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+
+		if (
+			isset( $attrs['layout'] ) && is_array( $attrs['layout'] )
+			&& 'constrained' === ( $attrs['layout']['type'] ?? '' )
+		) {
+			unset( $attrs['layout'] );
+
+			$block['attrs'] = $attrs;
+
+			$updated = true;
+		}
 
 		return $block;
 	}
