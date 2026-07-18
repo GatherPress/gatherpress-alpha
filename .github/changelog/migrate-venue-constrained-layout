@@ -1,0 +1,4 @@
+Significance: major
+Type: added
+
+Add the 0.35.0 migration removing stored constrained inner layouts from Venue blocks now that the block defaults to flow; older versions never applied the venue's inner layout on the frontend, so removing these keeps existing sites rendering unchanged while the editor stops constraining venue contents.
