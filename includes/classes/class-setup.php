@@ -2200,51 +2200,60 @@ class Setup {
 	}
 
 	/**
-	 * Moves a single venue map block's dimensions to `style.dimensions`.
+	 * Moves a single venue map block's height to `style.dimensions` and
+	 * drops width entirely.
+	 *
+	 * As of GatherPress 0.35.0 the map always fills its container — width
+	 * is never stored — and height is the only stored dimension, kept as a
+	 * CSS string under `style.dimensions.height`.
 	 *
 	 * Attribute translation:
-	 * - A positive numeric `width`/`height` becomes the equivalent px string
-	 *   in `style.dimensions` (e.g. `640` => `"640px"`). An existing
-	 *   `style.dimensions` value for the same side wins and the legacy number
-	 *   is simply dropped — the block reads the style value first, so this
-	 *   preserves what the site actually renders.
-	 * - A zero or invalid value meant "auto" and is dropped entirely; in the
-	 *   new model an absent dimension is auto.
-	 * - The legacy attributes are removed either way, so site defaults from
-	 *   GatherPress Settings → Venues (which arrive as runtime attribute
-	 *   defaults) apply again the next time the block renders.
+	 * - A positive numeric `height` becomes the equivalent px string in
+	 *   `style.dimensions.height` (e.g. `300` => `"300px"`). An existing
+	 *   `style.dimensions.height` wins and the legacy number is dropped.
+	 * - The legacy `width` attribute is removed without replacement, as is
+	 *   any `style.dimensions.width` written during the 0.35.0 development
+	 *   cycle — the container and the block's alignment own the width now.
+	 * - A zero or invalid height meant "auto" and is dropped entirely; in
+	 *   the new model an absent height means the aspect ratio (or the
+	 *   Settings → Venues default height) shapes the block.
 	 *
-	 * Blocks that carry neither legacy attribute are left untouched.
+	 * Blocks carrying none of those values are left untouched.
 	 *
 	 * @param array $block   The parsed gatherpress/venue-map block.
 	 * @param bool  $updated Reference to track if the block was transformed.
 	 * @return array The transformed block.
 	 */
 	private function transform_venue_map_block( array $block, bool &$updated ): array {
-		$attrs = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+		$attrs           = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
+		$has_style_width = isset( $attrs['style']['dimensions']['width'] );
 
-		if ( ! array_key_exists( 'width', $attrs ) && ! array_key_exists( 'height', $attrs ) ) {
+		if (
+			! array_key_exists( 'width', $attrs )
+			&& ! array_key_exists( 'height', $attrs )
+			&& ! $has_style_width
+		) {
 			return $block;
 		}
 
 		$style               = isset( $attrs['style'] ) && is_array( $attrs['style'] ) ? $attrs['style'] : array();
 		$style['dimensions'] = isset( $style['dimensions'] ) && is_array( $style['dimensions'] ) ? $style['dimensions'] : array();
 
-		foreach ( array( 'width', 'height' ) as $dimension ) {
-			if ( ! array_key_exists( $dimension, $attrs ) ) {
-				continue;
-			}
+		// Width is gone from the model — both the legacy attribute and any
+		// dev-cycle style value.
+		unset( $attrs['width'], $style['dimensions']['width'] );
 
-			$value = $attrs[ $dimension ];
-			unset( $attrs[ $dimension ] );
+		if ( array_key_exists( 'height', $attrs ) ) {
+			$value = $attrs['height'];
+			unset( $attrs['height'] );
 
-			if ( is_numeric( $value ) && 0 < (int) $value && empty( $style['dimensions'][ $dimension ] ) ) {
-				$style['dimensions'][ $dimension ] = (int) $value . 'px';
+			if ( is_numeric( $value ) && 0 < (int) $value && empty( $style['dimensions']['height'] ) ) {
+				$style['dimensions']['height'] = (int) $value . 'px';
 			}
 		}
 
 		// Don't leave an empty dimensions array (or style array) behind on a
-		// block that only carried "auto" values.
+		// block that only carried "auto" or width values.
 		if ( empty( $style['dimensions'] ) ) {
 			unset( $style['dimensions'] );
 		}

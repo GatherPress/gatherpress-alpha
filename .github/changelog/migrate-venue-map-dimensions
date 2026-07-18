@@ -1,4 +1,4 @@
 Significance: major
 Type: added
 
-Add the 0.35.0 migration moving the Venue Map block's numeric width/height attributes to the WordPress core dimensions support (`style.dimensions` px strings) across all post types, templates, reusable blocks, block widgets, and RSVP serialized inner blocks; stored "auto" (zero) values are dropped since an absent dimension now means auto.
+Add the 0.35.0 migration for the Venue Map block's new sizing model: saved numeric heights move to the core dimensions support (`style.dimensions.height` px strings) and saved widths are removed entirely — the map now always fills its container, with alignments providing larger layouts. Sweeps all post types, templates, reusable blocks, block widgets, and RSVP serialized inner blocks.

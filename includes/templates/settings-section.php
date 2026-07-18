@@ -123,14 +123,15 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 	</ul>
 	<p><em><?php esc_html_e( 'Requires WordPress 7.0 or newer. Icon blocks that are not migrated will show a "missing block" notice in the editor once the GatherPress Icon block is removed.', 'gatherpress-alpha' ); ?></em></p>
 
-	<p><strong><?php esc_html_e( 'Venue Map Dimensions Moved:', 'gatherpress-alpha' ); ?></strong></p>
-	<p><?php esc_html_e( 'The Venue Map block now uses the WordPress core dimensions support: width and height are stored as CSS values in the block\'s style attribute and edited through the core Dimensions panel. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<p><strong><?php esc_html_e( 'Venue Map Sizing Changed:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The Venue Map block now always fills its container — use wide or full alignment for larger maps — and height is the only stored dimension, kept as a CSS value in the block\'s style attribute. This migration will:', 'gatherpress-alpha' ); ?></p>
 	<ul>
-		<li><?php esc_html_e( 'Convert saved numeric width and height values on Venue Map blocks to the new format across every post type, including templates, template parts, reusable blocks, and block widgets', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Drop stored "auto" (zero) values — an absent dimension now means auto', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Convert saved numeric height values on Venue Map blocks to the new format across every post type, including templates, template parts, reusable blocks, and block widgets', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Remove saved width values — the map\'s width now comes from its container and alignment', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Drop stored "auto" (zero) values — an absent height means the aspect ratio shapes the map', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Leave aspect ratio, zoom, and all other map settings untouched', 'gatherpress-alpha' ); ?></li>
 	</ul>
-	<p><em><?php esc_html_e( 'Unmigrated blocks keep rendering at their saved size — GatherPress reads the old attributes as a fallback — but their width and height will not appear in the editor\'s Dimensions panel until they are migrated or edited.', 'gatherpress-alpha' ); ?></em></p>
+	<p><em><?php esc_html_e( 'Unmigrated blocks render at the default size until this migration runs.', 'gatherpress-alpha' ); ?></em></p>
 
 	<p><strong><?php esc_html_e( 'Venue Inner Layout Changed:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The Venue block\'s inner layout now defaults to flow, so its contents follow the venue\'s own width in every alignment. This migration will:', 'gatherpress-alpha' ); ?></p>
