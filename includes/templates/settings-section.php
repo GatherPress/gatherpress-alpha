@@ -140,6 +140,15 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 		<li><?php esc_html_e( 'Leave alignment and all other Venue settings untouched', 'gatherpress-alpha' ); ?></li>
 	</ul>
 	<p><em><?php esc_html_e( 'Older versions never applied the venue\'s inner layout on the site frontend, so removing these keeps pages rendering exactly as they always have. Constrained content can be re-enabled per block with the layout panel\'s content-width toggle, which now works on the frontend as well.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'RSVP Settings Vocabulary Normalized:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The RSVP settings page now stores its values in one enabled/disabled vocabulary, so the saved value matches the label shown in the dropdown. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename the RSVP Mode values: all_on becomes enabled, per_event_on becomes per_event_enabled, and per_event_off becomes per_event_disabled (Disabled is unchanged)', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Rename the RSVP cleanup toggle values: off becomes disabled and on becomes enabled', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave absent or already-normalized values untouched, so it is safe to run more than once', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'RSVP behaves the same before and after — only the stored value names change.', 'gatherpress-alpha' ); ?></em></p>
 </details>
 
 <details class="gatherpress-alpha-version">
