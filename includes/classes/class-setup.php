@@ -1840,6 +1840,57 @@ class Setup {
 		$this->replace_icon_blocks_in_widgets();
 		$this->migrate_venue_blocks();
 		$this->migrate_venue_blocks_in_widgets();
+		$this->migrate_rsvp_setting_values();
+	}
+
+	/**
+	 * Normalizes the RSVP settings vocabulary to the enabled/disabled scheme.
+	 *
+	 * 0.35.0 renamed the stored values on the RSVP settings page so the whole
+	 * page speaks one vocabulary. The `rsvp_mode` on/off variants become
+	 * enabled/disabled, and the `rsvp_cleanup_switch` toggle moves off its
+	 * generic on/off values:
+	 *
+	 *   - rsvp_mode:            all_on -> enabled, per_event_on -> per_event_enabled,
+	 *                          per_event_off -> per_event_disabled (disabled kept).
+	 *   - rsvp_cleanup_switch:  off -> disabled, on -> enabled.
+	 *
+	 * Both values live flat in the shared gatherpress_settings option. Absent
+	 * or already-migrated values are left untouched, so the pass is idempotent.
+	 *
+	 * @return void
+	 */
+	private function migrate_rsvp_setting_values(): void {
+		$settings = get_option( Settings::OPTION_NAME, array() );
+
+		if ( ! is_array( $settings ) ) {
+			return;
+		}
+
+		$value_maps = array(
+			'rsvp_mode'           => array(
+				'all_on'        => 'enabled',
+				'per_event_on'  => 'per_event_enabled',
+				'per_event_off' => 'per_event_disabled',
+			),
+			'rsvp_cleanup_switch' => array(
+				'off' => 'disabled',
+				'on'  => 'enabled',
+			),
+		);
+
+		$changed = false;
+
+		foreach ( $value_maps as $key => $map ) {
+			if ( isset( $settings[ $key ] ) && isset( $map[ $settings[ $key ] ] ) ) {
+				$settings[ $key ] = $map[ $settings[ $key ] ];
+				$changed          = true;
+			}
+		}
+
+		if ( $changed ) {
+			update_option( Settings::OPTION_NAME, $settings );
+		}
 	}
 
 	/**

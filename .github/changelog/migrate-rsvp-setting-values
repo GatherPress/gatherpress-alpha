@@ -1,0 +1,4 @@
+Significance: major
+Type: added
+
+Add the 0.35.0 migration for the RSVP settings vocabulary. Stored values on the RSVP settings page are normalized to the enabled/disabled scheme: `rsvp_mode` moves from all_on/per_event_on/per_event_off to enabled/per_event_enabled/per_event_disabled (Disabled unchanged), and `rsvp_cleanup_switch` moves from off/on to disabled/enabled. Absent or already-migrated values are left untouched, so the pass is idempotent.
