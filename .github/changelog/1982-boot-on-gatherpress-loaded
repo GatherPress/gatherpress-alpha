@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+Boot from the gatherpress_loaded action so a site no longer fatals when GatherPress fails its own requirements check.

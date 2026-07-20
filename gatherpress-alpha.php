@@ -36,8 +36,35 @@ add_filter(
 	}
 );
 
-// Boot the Alpha runtime once all plugins have loaded — but only when
-// GatherPress itself is present at a matching version.
+// Boot the Alpha runtime when GatherPress announces it has finished loading.
+//
+// Registered at file-load time rather than inside `plugins_loaded`: GatherPress
+// fires `gatherpress_loaded` from within its own `plugins_loaded` callback, and
+// its callback is registered first, so a listener added inside ours would be
+// added after the action had already fired.
+//
+// Gating on this action rather than on `defined( 'GATHERPRESS_VERSION' )` is
+// what keeps a site alive when GatherPress fails its own requirements check.
+// The GATHERPRESS_* constants are defined *before* that check, so they mean
+// "GatherPress began loading", not "GatherPress loaded successfully" — booting
+// on them meant calling into classes whose autoloader was never registered,
+// fataling the whole site (GatherPress#1982).
+add_action(
+	'gatherpress_loaded',
+	static function (): void {
+		// Re-checked here because `gatherpress_loaded` fires whenever GatherPress
+		// loads, including at a version Alpha is not locked to.
+		if ( GATHERPRESS_VERSION !== GATHERPRESS_ALPHA_VERSION ) {
+			return;
+		}
+
+		GatherPress_Alpha\Setup::get_instance();
+	}
+);
+
+// Surface why Alpha is inert when GatherPress is absent or mismatched. These
+// stay on `plugins_loaded` because they must run in the cases where
+// `gatherpress_loaded` never fires.
 add_action(
 	'plugins_loaded',
 	static function (): void {
@@ -72,8 +99,6 @@ add_action(
 
 			return;
 		}
-
-		GatherPress_Alpha\Setup::get_instance();
 	}
 );
 
