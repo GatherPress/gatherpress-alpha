@@ -102,14 +102,20 @@ add_action(
 	}
 );
 
-// Announce this plugin to GatherPress's coexistence guard. Fired on
-// `plugins_loaded` so the registration runs after every active plugin has
-// loaded — GatherPress's listener is then guaranteed to be in place
-// regardless of the plugin order in the `active_plugins` option. When
-// GatherPress is not active, the action fires into the void — no fatal,
-// no side effect.
+// Announce this plugin to GatherPress's coexistence guard.
+//
+// On `gatherpress_loaded` rather than `plugins_loaded`: the guard's listener is
+// registered by Coexistence_Guard, which GatherPress instantiates during its
+// own bootstrap, so the action is only ever heard when GatherPress finished
+// loading. Firing it on `plugins_loaded` meant shouting into the void whenever
+// GatherPress was absent or had bailed.
+//
+// Kept separate from the boot listener above, and deliberately not gated on the
+// version match: the coexistence guard is about which GatherPress-family
+// plugins are active, not which versions, so a mismatched Alpha still needs to
+// announce itself.
 add_action(
-	'plugins_loaded',
+	'gatherpress_loaded',
 	static function (): void {
 		do_action( 'gatherpress_register_coexistence_guard', 'gatherpress-alpha', 'GatherPress Alpha', __FILE__ );
 	}
