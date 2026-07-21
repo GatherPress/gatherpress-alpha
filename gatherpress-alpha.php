@@ -1,15 +1,16 @@
 <?php
 /**
- * Plugin Name:      GatherPress Alpha
- * Plugin URI:       https://gatherpress.org/
- * Description:      Powering Communities with WordPress.
- * Author:           The GatherPress Community
- * Author URI:       https://gatherpress.org/
- * Version:          0.34.0
- * Requires PHP:     8.1
- * Requires Plugins: gatherpress
- * Text Domain:      gatherpress-alpha
- * License:          GPLv2 or later (license.txt)
+ * Plugin Name:       GatherPress Alpha
+ * Plugin URI:        https://gatherpress.org/
+ * Description:       Powering Communities with WordPress.
+ * Author:            The GatherPress Community
+ * Author URI:        https://gatherpress.org/
+ * Version:           0.34.0
+ * Requires PHP:      8.1
+ * Requires at least: 6.7
+ * Requires Plugins:  gatherpress
+ * Text Domain:       gatherpress-alpha
+ * License:           GPLv2 or later (license.txt)
  *
  * @package GatherPress_Alpha
  */
@@ -72,11 +73,10 @@ add_action(
 			add_action(
 				'admin_notices',
 				static function (): void {
-					?>
-					<div class="notice notice-error">
-						<p><?php esc_html_e( 'GatherPress is not installed.', 'gatherpress-alpha' ); ?></p>
-					</div>
-					<?php
+					wp_admin_notice(
+						esc_html__( 'GatherPress is not installed.', 'gatherpress-alpha' ),
+						array( 'type' => 'error' )
+					);
 				}
 			);
 
@@ -87,13 +87,10 @@ add_action(
 			add_action(
 				'admin_notices',
 				static function (): void {
-					?>
-					<div class="notice notice-error">
-						<p>
-							<?php esc_html_e( 'GatherPress and GatherPress Alpha must be the same version.', 'gatherpress-alpha' ); ?>
-						</p>
-					</div>
-					<?php
+					wp_admin_notice(
+						esc_html__( 'GatherPress and GatherPress Alpha must be the same version.', 'gatherpress-alpha' ),
+						array( 'type' => 'error' )
+					);
 				}
 			);
 
