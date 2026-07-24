@@ -5,7 +5,7 @@
  * Description:       Powering Communities with WordPress.
  * Author:            The GatherPress Community
  * Author URI:        https://gatherpress.org/
- * Version:           0.35.0-alpha.1
+ * Version:           0.35.0-alpha.2
  * Requires PHP:      8.1
  * Requires at least: 6.7
  * Requires Plugins:  gatherpress
