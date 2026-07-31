@@ -2336,6 +2336,14 @@ class Setup {
 	 * with the layout panel's content-width toggle, which now works on the
 	 * frontend too. Layout attributes of any other type are left untouched.
 	 *
+	 * Only the `type` is dropped, not the whole `layout` attribute. Sibling
+	 * keys (`contentSize`, `wideSize`, `justifyContent`) are values the author
+	 * typed into the layout panel, and a layout without a `type` falls back to
+	 * the block's flow default, so the frontend and editor still render exactly
+	 * as they did before 0.35.0 while the author's own numbers survive for
+	 * whoever re-enables the content-width toggle. A `layout` that held nothing
+	 * but the constrained type is removed outright, as before.
+	 *
 	 * @param array $block   The parsed gatherpress/venue block.
 	 * @param bool  $updated Reference to track if the block was transformed.
 	 * @return array The transformed block.
@@ -2347,7 +2355,11 @@ class Setup {
 			isset( $attrs['layout'] ) && is_array( $attrs['layout'] )
 			&& 'constrained' === ( $attrs['layout']['type'] ?? '' )
 		) {
-			unset( $attrs['layout'] );
+			unset( $attrs['layout']['type'] );
+
+			if ( empty( $attrs['layout'] ) ) {
+				unset( $attrs['layout'] );
+			}
 
 			$block['attrs'] = $attrs;
 
