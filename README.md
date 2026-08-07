@@ -5,7 +5,9 @@ As we continue to refine and develop GatherPress, please use the GatherPress Alp
 - Ensure that the version of GatherPress Alpha matches the version of the core GatherPress plugin.
 - Activate both plugins.
 - Navigate to the `Alpha` tab under `Events -> Settings` in the WordPress admin.
-- Click `Fix GatherPress!` to resolve any compatibility issues.
+- Click `Apply Updates` to resolve any compatibility issues.
+
+While updates are pending, GatherPress Alpha shows a notice at the top of the WordPress admin with a link straight to that screen, so there is no need to go looking for it.
 
 ## How to Determine Which Version to Install
 

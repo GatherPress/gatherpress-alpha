@@ -68,6 +68,97 @@ class Setup {
 		add_action( 'gatherpress_sub_pages', array( $this, 'setup_sub_page' ) );
 		add_action( 'gatherpress_settings_section', array( $this, 'settings_section' ), 9 );
 		add_action( 'wp_ajax_gatherpress_alpha', array( $this, 'ajax_fix' ) );
+		add_action(
+			is_multisite() ? 'network_admin_notices' : 'admin_notices',
+			array( $this, 'render_pending_fixes_notice' )
+		);
+	}
+
+	/**
+	 * Whether compatibility updates are still pending on this site.
+	 *
+	 * `run_fixes()` records GATHERPRESS_ALPHA_VERSION once it completes, so a
+	 * stored value that differs from the running version means the updates for
+	 * this version have not been applied. A site that has never run them stores
+	 * nothing at all.
+	 *
+	 * @return bool True when updates have not been applied for the running version.
+	 */
+	public function has_pending_fixes(): bool {
+		return GATHERPRESS_ALPHA_VERSION !== $this->get_last_run_version();
+	}
+
+	/**
+	 * URL of the GatherPress Alpha settings screen.
+	 *
+	 * Alpha is a network-level concern on multisite, where it renders as a tab
+	 * on the network settings page rather than as a per-site sub-page.
+	 *
+	 * @return string Admin URL for the Alpha screen.
+	 */
+	public function get_settings_url(): string {
+		if ( is_multisite() ) {
+			return add_query_arg(
+				array(
+					'page' => 'gatherpress-network-settings',
+					'tab'  => 'alpha',
+				),
+				network_admin_url( 'settings.php' )
+			);
+		}
+
+		return admin_url( 'edit.php?post_type=gatherpress_event&page=gatherpress_alpha' );
+	}
+
+	/**
+	 * Whether the current request is already the Alpha screen.
+	 *
+	 * The notice points at that screen, so showing it there is just noise above
+	 * the thing it is pointing to.
+	 *
+	 * @return bool True when the Alpha screen is being viewed.
+	 */
+	private function is_alpha_screen(): bool {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only check on navigation parameters.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		$tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( is_multisite() ) {
+			return 'gatherpress-network-settings' === $page && 'alpha' === $tab;
+		}
+
+		return 'gatherpress_alpha' === $page;
+	}
+
+	/**
+	 * Render an admin notice while compatibility updates are pending.
+	 *
+	 * Alpha deliberately does not migrate on its own -- it rewrites saved post
+	 * content, which should never happen unattended -- so the run is a decision
+	 * an administrator makes. That only works if they know it is waiting, which
+	 * previously meant finding a settings tab they had no reason to visit
+	 * (GatherPress#2108).
+	 *
+	 * Not dismissible on purpose: it clears itself the moment the updates run,
+	 * so it cannot nag past the point of being actionable.
+	 *
+	 * @return void
+	 */
+	public function render_pending_fixes_notice(): void {
+		$capability = is_multisite() ? 'manage_network' : 'manage_options';
+
+		if ( ! current_user_can( $capability ) || $this->is_alpha_screen() || ! $this->has_pending_fixes() ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-warning"><p><strong>%1$s</strong> %2$s</p><p><a href="%3$s" class="button button-primary">%4$s</a></p></div>',
+			esc_html__( 'GatherPress Alpha:', 'gatherpress-alpha' ),
+			esc_html__( 'Compatibility updates are pending. GatherPress is pre-1.0 and this version contains breaking changes that need to be applied to your saved content. Until you apply them, blocks and settings from an earlier version may not render correctly.', 'gatherpress-alpha' ),
+			esc_url( $this->get_settings_url() ),
+			esc_html__( 'Review and apply updates', 'gatherpress-alpha' )
+		);
 	}
 
 	/**
