@@ -68,6 +68,174 @@ class Setup {
 		add_action( 'gatherpress_sub_pages', array( $this, 'setup_sub_page' ) );
 		add_action( 'gatherpress_settings_section', array( $this, 'settings_section' ), 9 );
 		add_action( 'wp_ajax_gatherpress_alpha', array( $this, 'ajax_fix' ) );
+		add_action(
+			is_multisite() ? 'network_admin_notices' : 'admin_notices',
+			array( $this, 'render_pending_fixes_notice' )
+		);
+	}
+
+	/**
+	 * Whether compatibility updates are still pending on this site.
+	 *
+	 * `run_fixes()` records GATHERPRESS_ALPHA_VERSION once it completes, so a
+	 * stored value that differs from the running version means the updates for
+	 * this version have not been applied. A site that has never run them stores
+	 * nothing at all.
+	 *
+	 * @return bool True when updates have not been applied for the running version.
+	 */
+	public function has_pending_fixes(): bool {
+		return GATHERPRESS_ALPHA_VERSION !== $this->get_last_run_version();
+	}
+
+	/**
+	 * URL of the GatherPress Alpha settings screen.
+	 *
+	 * Alpha is a network-level concern on multisite, where it renders as a tab
+	 * on the network settings page rather than as a per-site sub-page.
+	 *
+	 * @return string Admin URL for the Alpha screen.
+	 */
+	public function get_settings_url(): string {
+		if ( is_multisite() ) {
+			return add_query_arg(
+				array(
+					'page' => 'gatherpress-network-settings',
+					'tab'  => 'alpha',
+				),
+				network_admin_url( 'settings.php' )
+			);
+		}
+
+		return admin_url( 'edit.php?post_type=gatherpress_event&page=gatherpress_alpha' );
+	}
+
+	/**
+	 * Whether the current request is already the Alpha screen.
+	 *
+	 * The notice points at that screen, so showing it there is just noise above
+	 * the thing it is pointing to.
+	 *
+	 * @return bool True when the Alpha screen is being viewed.
+	 */
+	private function is_alpha_screen(): bool {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only check on navigation parameters.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		$tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( is_multisite() ) {
+			return 'gatherpress-network-settings' === $page && 'alpha' === $tab;
+		}
+
+		return 'gatherpress_alpha' === $page;
+	}
+
+	/**
+	 * Render an admin notice while compatibility updates are pending.
+	 *
+	 * Alpha deliberately does not migrate on its own -- it rewrites saved post
+	 * content, which should never happen unattended -- so the run is a decision
+	 * an administrator makes. That only works if they know it is waiting, which
+	 * previously meant finding a settings tab they had no reason to visit
+	 * (GatherPress#2108).
+	 *
+	 * Not dismissible on purpose: it clears itself the moment the updates run,
+	 * so it cannot nag past the point of being actionable.
+	 *
+	 * @return void
+	 */
+	public function render_pending_fixes_notice(): void {
+		$capability = is_multisite() ? 'manage_network' : 'manage_options';
+
+		if ( ! current_user_can( $capability ) || $this->is_alpha_screen() || ! $this->has_pending_fixes() ) {
+			return;
+		}
+
+		$message = sprintf(
+			'<div style="display:flex;align-items:flex-start;gap:20px;">
+				%1$s
+				<div>
+					<p style="margin:0 0 6px;font-size:1.08em;font-weight:600;color:#1769AA;">%2$s</p>
+					<p style="margin:0 0 12px;">%3$s</p>
+					<p style="margin:0;"><a href="%4$s" class="button button-primary">%5$s</a></p>
+				</div>
+			</div>',
+			$this->get_logo(),
+			esc_html__( 'GatherPress Alpha: compatibility updates are pending', 'gatherpress-alpha' ),
+			esc_html__( 'Blocks and settings from an earlier version may not render correctly until you apply them.', 'gatherpress-alpha' ),
+			esc_url( $this->get_settings_url() ),
+			esc_html__( 'Review and apply updates', 'gatherpress-alpha' )
+		);
+
+		// wp_admin_notice() runs the message through wp_kses_post(), which allows
+		// neither svg nor path. Permit them for the length of this one call
+		// rather than hand-building the notice markup to get around it.
+		add_filter( 'wp_kses_allowed_html', array( $this, 'allow_logo_markup' ), 10, 2 );
+
+		wp_admin_notice(
+			$message,
+			array(
+				'type'               => 'warning',
+				'dismissible'        => false,
+				'id'                 => 'gatherpress-alpha-pending-fixes',
+				'additional_classes' => array( 'gatherpress-alpha-notice' ),
+				'paragraph_wrap'     => false,
+			)
+		);
+
+		remove_filter( 'wp_kses_allowed_html', array( $this, 'allow_logo_markup' ), 10 );
+	}
+
+	/**
+	 * Permit the inline logo through wp_kses_post().
+	 *
+	 * Added immediately before the notice renders and removed immediately
+	 * after, so the widened allowlist never applies to anything else. Scoped to
+	 * the post context, which is the one wp_admin_notice() uses.
+	 *
+	 * @param array  $tags    Allowed HTML tags and their attributes.
+	 * @param string $context The context the allowlist is being used in.
+	 * @return array Allowed tags, with svg and path added in the post context.
+	 */
+	public function allow_logo_markup( array $tags, string $context ): array {
+		if ( 'post' !== $context ) {
+			return $tags;
+		}
+
+		$tags['svg']  = array(
+			'xmlns'       => true,
+			'viewbox'     => true,
+			'width'       => true,
+			'height'      => true,
+			'aria-hidden' => true,
+			'focusable'   => true,
+			'style'       => true,
+		);
+		$tags['path'] = array(
+			'fill' => true,
+			'd'    => true,
+		);
+
+		return $tags;
+	}
+
+	/**
+	 * The GatherPress mark, inlined as an SVG.
+	 *
+	 * Inlined rather than loaded from a file because the logo asset lives in
+	 * core's `.wordpress-org/` directory, which `.distignore` keeps out of the
+	 * distributed plugin, so there is nothing to link to at runtime.
+	 *
+	 * Decorative: the notice states who it is from in text, so the mark is
+	 * hidden from assistive technology rather than repeating it.
+	 *
+	 * @return string Inline SVG markup.
+	 */
+	private function get_logo(): string {
+		return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="60" height="60" aria-hidden="true" focusable="false" style="flex-shrink:0;">'
+			. '<path fill="#1769AA" d="M125.4,50.8V13.4c0-6.8-5.6-12.4-12.4-12.4H88.1c-6.8,0-12.4,5.6-12.4,12.4v37.3c0,6.8,5.6,12.4,12.4,12.4h24.9 C119.8,63.2,125.4,57.6,125.4,50.8z M100.5,13.4c6.8,0,12.4,5.6,12.4,12.4s-5.6,12.4-12.4,12.4s-12.4-5.6-12.4-12.4 S93.7,13.4,100.5,13.4z M200,175.1V75.6c0-13.7-11.2-24.9-24.9-24.9h-37.3v4.1c0,11.4-9.3,20.8-20.8,20.8H84 c-11.4,0-20.8-9.3-20.8-20.8v-4.1H25.9C12.2,50.8,1,61.9,1,75.6v99.5C1,188.8,12.2,200,25.9,200h149.2 C188.8,200,200,188.8,200,175.1z M187.6,100.5v74.6H13.4v-74.6H187.6z M88.1,125.4c0-6.8-2.7-12.4-6.2-12.4s-6.2,5.6-6.2,12.4 c0,6.8,2.7,12.4,6.2,12.4S88.1,132.2,88.1,125.4z M125.4,125.4c0-6.8-2.7-12.4-6.2-12.4s-6.2,5.6-6.2,12.4c0,6.8,2.7,12.4,6.2,12.4 S125.4,132.2,125.4,125.4z M51.2,140.4c11.4,6,29.1,9.8,49.3,9.8s37.8-3.9,49.3-9.8c-2.6,12.4-23.5,22.3-49.3,22.3 S53.9,152.9,51.2,140.4z"/>'
+			. '</svg>';
 	}
 
 	/**
