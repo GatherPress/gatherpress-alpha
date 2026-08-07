@@ -153,11 +153,58 @@ class Setup {
 		}
 
 		printf(
-			'<div class="notice notice-warning"><p><strong>%1$s</strong> %2$s</p><p><a href="%3$s" class="button button-primary">%4$s</a></p></div>',
-			esc_html__( 'GatherPress Alpha:', 'gatherpress-alpha' ),
-			esc_html__( 'Compatibility updates are pending. Blocks and settings from an earlier version may not render correctly until you apply them.', 'gatherpress-alpha' ),
+			'<div class="notice notice-warning">
+				<div style="display:flex;align-items:flex-start;gap:20px;padding:16px 4px;">
+					%1$s
+					<div>
+						<p style="margin:0 0 6px;font-size:1.08em;font-weight:600;color:#1769AA;">%2$s</p>
+						<p style="margin:0 0 12px;">%3$s</p>
+						<p style="margin:0;"><a href="%4$s" class="button button-primary">%5$s</a></p>
+					</div>
+				</div>
+			</div>',
+			$this->get_logo(), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped through wp_kses in get_logo().
+			esc_html__( 'GatherPress Alpha: compatibility updates are pending', 'gatherpress-alpha' ),
+			esc_html__( 'Blocks and settings from an earlier version may not render correctly until you apply them.', 'gatherpress-alpha' ),
 			esc_url( $this->get_settings_url() ),
 			esc_html__( 'Review and apply updates', 'gatherpress-alpha' )
+		);
+	}
+
+	/**
+	 * The GatherPress mark, inlined as an SVG.
+	 *
+	 * Inlined rather than loaded from a file because the logo asset lives in
+	 * core's `.wordpress-org/` directory, which `.distignore` keeps out of the
+	 * distributed plugin, so there is nothing to link to at runtime.
+	 *
+	 * Decorative: the notice states who it is from in text, so the mark is
+	 * hidden from assistive technology rather than repeating it.
+	 *
+	 * @return string Escaped inline SVG markup.
+	 */
+	private function get_logo(): string {
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="72" height="72" aria-hidden="true" focusable="false" style="flex-shrink:0;">'
+			. '<path fill="#1769AA" d="M125.4,50.8V13.4c0-6.8-5.6-12.4-12.4-12.4H88.1c-6.8,0-12.4,5.6-12.4,12.4v37.3c0,6.8,5.6,12.4,12.4,12.4h24.9 C119.8,63.2,125.4,57.6,125.4,50.8z M100.5,13.4c6.8,0,12.4,5.6,12.4,12.4s-5.6,12.4-12.4,12.4s-12.4-5.6-12.4-12.4 S93.7,13.4,100.5,13.4z M200,175.1V75.6c0-13.7-11.2-24.9-24.9-24.9h-37.3v4.1c0,11.4-9.3,20.8-20.8,20.8H84 c-11.4,0-20.8-9.3-20.8-20.8v-4.1H25.9C12.2,50.8,1,61.9,1,75.6v99.5C1,188.8,12.2,200,25.9,200h149.2 C188.8,200,200,188.8,200,175.1z M187.6,100.5v74.6H13.4v-74.6H187.6z M88.1,125.4c0-6.8-2.7-12.4-6.2-12.4s-6.2,5.6-6.2,12.4 c0,6.8,2.7,12.4,6.2,12.4S88.1,132.2,88.1,125.4z M125.4,125.4c0-6.8-2.7-12.4-6.2-12.4s-6.2,5.6-6.2,12.4c0,6.8,2.7,12.4,6.2,12.4 S125.4,132.2,125.4,125.4z M51.2,140.4c11.4,6,29.1,9.8,49.3,9.8s37.8-3.9,49.3-9.8c-2.6,12.4-23.5,22.3-49.3,22.3 S53.9,152.9,51.2,140.4z"/>'
+			. '</svg>';
+
+		return wp_kses(
+			$svg,
+			array(
+				'svg'  => array(
+					'xmlns'       => true,
+					'viewbox'     => true,
+					'width'       => true,
+					'height'      => true,
+					'aria-hidden' => true,
+					'focusable'   => true,
+					'style'       => true,
+				),
+				'path' => array(
+					'fill' => true,
+					'd'    => true,
+				),
+			)
 		);
 	}
 
