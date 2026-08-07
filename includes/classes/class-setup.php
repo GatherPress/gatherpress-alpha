@@ -155,7 +155,7 @@ class Setup {
 		printf(
 			'<div class="notice notice-warning"><p><strong>%1$s</strong> %2$s</p><p><a href="%3$s" class="button button-primary">%4$s</a></p></div>',
 			esc_html__( 'GatherPress Alpha:', 'gatherpress-alpha' ),
-			esc_html__( 'Compatibility updates are pending. GatherPress is pre-1.0 and this version contains breaking changes that need to be applied to your saved content. Until you apply them, blocks and settings from an earlier version may not render correctly.', 'gatherpress-alpha' ),
+			esc_html__( 'Compatibility updates are pending. Blocks and settings from an earlier version may not render correctly until you apply them.', 'gatherpress-alpha' ),
 			esc_url( $this->get_settings_url() ),
 			esc_html__( 'Review and apply updates', 'gatherpress-alpha' )
 		);
