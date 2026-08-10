@@ -14,6 +14,21 @@ every GatherPress release has a matching GatherPress Alpha release that ships
 the migration code needed to bridge breaking changes between versions. This
 plugin is a temporary developer companion that goes away at GatherPress 1.0.0.
 
+## [0.35.0] - 2026-08-10
+### Added
+- Add the 0.35.0 migration for the RSVP settings vocabulary. Stored values on the RSVP settings page are normalized to the enabled/disabled scheme: `rsvp_mode` moves from all_on/per_event_on/per_event_off to enabled/per_event_enabled/per_event_disabled (Disabled unchanged), and `rsvp_cleanup_switch` moves from off/on to disabled/enabled. Absent or already-migrated values are left untouched, so the pass is idempotent. [#53]
+- Add the 0.35.0 migration for the Venue Map block's new sizing model: saved numeric heights move to the core dimensions support (`style.dimensions.height` px strings) and saved widths are removed entirely — the map now always fills its container, with alignments providing larger layouts. Sweeps all post types, templates, reusable blocks, block widgets, and RSVP serialized inner blocks. [#52]
+- Add the 0.35.0 migration removing stored constrained inner layouts from Venue blocks now that the block defaults to flow; older versions never applied the venue's inner layout on the frontend, so removing these keeps existing sites rendering unchanged while the editor stops constraining venue contents. [#52]
+- Add the 0.35.0 migration replacing the deprecated `gatherpress/icon` block with the WordPress 7.0 `core/icon` block across all post types, templates, reusable blocks, block widgets, and RSVP serialized inner blocks, preserving icon choice, size, color, alignment, anchor, classes, and margins. [#50]
+- Show an admin notice while compatibility updates are pending, linking straight to the Alpha screen. Alpha still only migrates when an administrator runs it, since it rewrites saved post content, but nothing previously told you a run was waiting. Detected by comparing the recorded run version against the running plugin version, so the notice clears itself once the updates are applied. [#62]
+
+### Changed
+- Require WordPress 7.0, matching the floor GatherPress 0.35.0 raised. [#64]
+
+### Fixed
+- Boot from the gatherpress_loaded action so a site no longer fatals when GatherPress fails its own requirements check. [#54]
+- Keep author-set layout values when migrating Venue blocks off the constrained default. The 0.35.0 venue layout pass dropped the whole `layout` attribute, discarding `contentSize`, `wideSize`, and `justifyContent` alongside the `type`; only the `type` is removed now, so the block still falls back to flow and renders exactly as before while those values survive for anyone who re-enables the content-width toggle. [#60]
+
 ## [0.34.0] - 2026-07-10
 ### Security
 - Removed malicious files that had been injected into the repository: a JavaScript loader disguised as `public/fonts/fa-solid-400.woff2` (detected by antivirus as `Trojan:JS/PolinRider`), a `.vscode` task that auto-ran it when the folder was opened in VS Code, and a cover-story `public/fonts/README.md`. The payload only executed in a developer's editor on folder open and was never loaded or run by WordPress at runtime. The original 0.34.0-alpha.2 build was affected; this is a clean re-cut. [#40] [#40]
@@ -105,6 +120,7 @@ Maintenance release tracking GatherPress 0.29.1.
 
 First public release of the GatherPress Alpha companion plugin. Provides a small migration runner that fixes legacy data when GatherPress ships breaking changes — designed to be activated alongside core GatherPress in lockstep with matching version numbers.
 
+[0.35.0]: https://github.com/GatherPress/gatherpress-alpha/compare/0.34.0...0.35.0
 [0.34.0]: https://github.com/GatherPress/gatherpress-alpha/compare/0.33.3...0.34.0
 [0.33.3]: https://github.com/GatherPress/gatherpress-alpha/compare/0.33.2...0.33.3
 [0.33.2]: https://github.com/GatherPress/gatherpress-alpha/compare/0.33.1...0.33.2
