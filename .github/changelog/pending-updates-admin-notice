@@ -1,4 +1,0 @@
-Significance: minor
-Type: added
-
-Show an admin notice while compatibility updates are pending, linking straight to the Alpha screen. Alpha still only migrates when an administrator runs it, since it rewrites saved post content, but nothing previously told you a run was waiting. Detected by comparing the recorded run version against the running plugin version, so the notice clears itself once the updates are applied.

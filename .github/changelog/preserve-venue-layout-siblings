@@ -1,4 +1,0 @@
-Significance: patch
-Type: fixed
-
-Keep author-set layout values when migrating Venue blocks off the constrained default. The 0.35.0 venue layout pass dropped the whole `layout` attribute, discarding `contentSize`, `wideSize`, and `justifyContent` alongside the `type`; only the `type` is removed now, so the block still falls back to flow and renders exactly as before while those values survive for anyone who re-enables the content-width toggle.
