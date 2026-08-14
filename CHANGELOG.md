@@ -14,6 +14,10 @@ every GatherPress release has a matching GatherPress Alpha release that ships
 the migration code needed to bridge breaking changes between versions. This
 plugin is a temporary developer companion that goes away at GatherPress 1.0.0.
 
+## [0.35.1] - 2026-08-14
+### Changed
+- Track the GatherPress 0.35.1 patch release, which the plugin is version-locked to. [#68]
+
 ## [0.35.0] - 2026-08-10
 ### Added
 - Add the 0.35.0 migration for the RSVP settings vocabulary. Stored values on the RSVP settings page are normalized to the enabled/disabled scheme: `rsvp_mode` moves from all_on/per_event_on/per_event_off to enabled/per_event_enabled/per_event_disabled (Disabled unchanged), and `rsvp_cleanup_switch` moves from off/on to disabled/enabled. Absent or already-migrated values are left untouched, so the pass is idempotent. [#53]
@@ -120,6 +124,7 @@ Maintenance release tracking GatherPress 0.29.1.
 
 First public release of the GatherPress Alpha companion plugin. Provides a small migration runner that fixes legacy data when GatherPress ships breaking changes — designed to be activated alongside core GatherPress in lockstep with matching version numbers.
 
+[0.35.1]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.0...0.35.1
 [0.35.0]: https://github.com/GatherPress/gatherpress-alpha/compare/0.34.0...0.35.0
 [0.34.0]: https://github.com/GatherPress/gatherpress-alpha/compare/0.33.3...0.34.0
 [0.33.3]: https://github.com/GatherPress/gatherpress-alpha/compare/0.33.2...0.33.3
