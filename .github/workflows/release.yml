@@ -82,6 +82,17 @@ jobs:
             version="${GITHUB_REF_NAME}"
           fi
 
+          # `-alpha.0` is the marker core sets on develop right after a
+          # release so the branch stops advertising the version that just
+          # shipped, and Alpha tracks it to keep the version lock satisfied.
+          # It is not a build: nothing should reach the Releases tab under it.
+          # Pre-release numbering starts at .1, so no suffix ending in .0 is
+          # ever a real build.
+          if [[ "${version}" =~ -(alpha|beta|rc)\.0$ ]]; then
+            echo "::error::'${version}' is a cycle marker, not a release. Pre-releases start at .1."
+            exit 1
+          fi
+
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
           # Pre-release suffix detection: alpha.N, beta.N, rc.N (per SemVer).
