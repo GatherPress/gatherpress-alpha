@@ -41,8 +41,8 @@ jobs:
             } else if ( draft ) {
               core.info( `Skipping changelog requirement for this PR (#${ number }) because it is a draft.` );
               core.setOutput( 'skip-changelog', 'true' );
-            } else if ( ref !== 'main' ) {
-              core.info( `Skipping changelog requirement for this PR (#${ number }) because it is not against the "main" branch.` );
+            } else if ( ref !== 'develop' ) {
+              core.info( `Skipping changelog requirement for this PR (#${ number }) because it is not against the "develop" branch.` );
               core.setOutput( 'skip-changelog', 'true' );
             } else {
               core.info( `No "${ skipLabel }" label found for PR #${ number }. Will check for changelog file.` );

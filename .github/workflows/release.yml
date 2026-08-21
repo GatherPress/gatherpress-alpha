@@ -4,7 +4,7 @@ name: Release
 #
 # Pushing a tag like `0.34.0` cuts a stable release: distro zip is built and
 # attached to a GitHub Release, the .github/changelog/* entries get rolled up
-# into CHANGELOG.md under a new version header (and auto-PR'd back to main
+# into CHANGELOG.md under a new version header (and auto-PR'd back to develop
 # for review).
 #
 # Pushing a tag like `0.34.0-alpha.1`, `-beta.1`, or `-rc.1` cuts a pre-release:
@@ -18,7 +18,8 @@ name: Release
 #
 # The workflow can also be dispatched with a version input instead of
 # pushing a tag (GatherPress/gatherpress#1921): it verifies the version
-# matches the `Version:` header on main and the release step creates the
+# matches the `Version:` header on the branch that version lives on, and
+# the release step creates the
 # tag itself. The core repo's Release workflow uses this to cut the
 # lockstep alpha release automatically when a cross-repo token is
 # configured there.
@@ -33,7 +34,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release from main (must match the Version header in gatherpress-alpha.php)'
+        description: 'Version to release (must match the Version header on develop for a pre-release, main for a stable)'
         required: true
         type: string
 
@@ -52,9 +53,13 @@ jobs:
       version: ${{ steps.context.outputs.version }}
       is_prerelease: ${{ steps.context.outputs.is_prerelease }}
     steps:
-      - name: Checkout main (dispatch only)
+      - name: Checkout the branch the version lives on (dispatch only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/checkout@v4
+        with:
+          # Pre-releases are cut from develop and stable releases from main,
+          # mirroring core. A hyphen in the version means pre-release.
+          ref: ${{ contains(inputs.version, '-') && 'develop' || 'main' }}
 
       - name: Classify tag
         id: context
@@ -69,7 +74,7 @@ jobs:
               exit 1
             fi
 
-            # The release step creates the tag at this run's HEAD of main, so
+            # The release step creates the tag at that branch's HEAD, so
             # refuse to cut a release whose version doesn't match the plugin
             # header — that means the version PR hasn't been merged yet.
             header=$(grep -E '^ \* Version:' gatherpress-alpha.php | awk '{print $NF}')
@@ -207,7 +212,7 @@ jobs:
           git push origin "${branch}"
 
           gh pr create \
-            --base main \
+            --base develop \
             --head "${branch}" \
             --title "Roll up changelog for ${VERSION}" \
             --body "Automated rollup of \`.github/changelog/*\` entries into \`CHANGELOG.md\` as part of the ${VERSION} release. Merge after confirming the rendered release body at https://github.com/${GITHUB_REPOSITORY}/releases/tag/${VERSION} looks right." \
@@ -304,10 +309,11 @@ jobs:
         with:
           tag_name: ${{ needs.prepare.outputs.version }}
           # On a workflow_dispatch run the tag does not exist yet; the action
-          # creates it at this commit (main HEAD at dispatch time). Tags
-          # created with GITHUB_TOKEN do not re-trigger this workflow's
-          # push-tag path, so there is no double run.
-          target_commitish: ${{ github.sha }}
+          # creates it at the head of the branch the version lives on —
+          # develop for a pre-release, main for a stable. Tags created with
+          # GITHUB_TOKEN do not re-trigger this workflow's push-tag path, so
+          # there is no double run.
+          target_commitish: ${{ github.event_name == 'workflow_dispatch' && (contains(needs.prepare.outputs.version, '-') && 'develop' || 'main') || github.sha }}
           name: ${{ needs.prepare.outputs.version }}
           body: ${{ needs.rollup.outputs.release_body }}
           files: gatherpress-alpha.${{ needs.prepare.outputs.version }}.zip
