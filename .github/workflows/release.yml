@@ -52,6 +52,12 @@ jobs:
     outputs:
       version: ${{ steps.context.outputs.version }}
       is_prerelease: ${{ steps.context.outputs.is_prerelease }}
+      # The ref every later job builds from. On a tag push that is the tag;
+      # on a dispatch it is the branch the version lives on. `github.ref` is
+      # wrong for the dispatch case: it names the branch the workflow file
+      # was taken from, which is `develop` whatever the version says, so a
+      # stable dispatched from the Actions tab rolled up and built `develop`.
+      ref: ${{ github.event_name == 'workflow_dispatch' && (contains(inputs.version, '-') && 'develop' || 'main') || github.ref }}
     steps:
       - name: Checkout the branch the version lives on (dispatch only)
         if: github.event_name == 'workflow_dispatch'
@@ -127,7 +133,7 @@ jobs:
       - name: Checkout the tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ needs.prepare.outputs.ref }}
           fetch-depth: 0
 
       - name: Setup PHP
@@ -238,7 +244,7 @@ jobs:
       - name: Checkout the tag
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ needs.prepare.outputs.ref }}
 
       - name: Build distro zip
         env:
