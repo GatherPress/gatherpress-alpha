@@ -21,6 +21,8 @@ use WP_CLI;
 use WP_Query;
 use GatherPress\Core\Topic;
 use GatherPress\Core\Venue;
+use VarnishPurger;
+use WpeCommon;
 
 /**
  * Class Setup.
@@ -445,6 +447,10 @@ class Setup {
 
 		if ( $this->should_run_fix( '0.35.0', $last_version ) ) {
 			$this->fix__0_35_0();
+		}
+
+		if ( $this->should_run_fix( '0.35.4', $last_version ) ) {
+			$this->fix__0_35_4();
 		}
 
 		// Update the stored version to current plugin version.
@@ -2535,5 +2541,124 @@ class Setup {
 		}
 
 		return $block;
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.35.4 of the plugin.
+	 *
+	 * GatherPress 0.35.4 changes the markup the RSVP response list refreshes
+	 * from, so a page a cache saved before the update keeps the old markup and
+	 * its response list stops refreshing until the cache is cleared.
+	 *
+	 * @return void
+	 */
+	private function fix__0_35_4(): void {
+		$this->purge_page_caches();
+	}
+
+	/**
+	 * Clears the page cache of every supported caching plugin and host that is
+	 * active, then flushes the object cache.
+	 *
+	 * Each call is the plugin's or host's own purge-everything entry point,
+	 * guarded so an inactive one is skipped. On multisite `fix()` runs this once
+	 * per site; most purges then clear the site being run, but WP Rocket and
+	 * W3 Total Cache only purge once per request and WP Fastest Cache clears the
+	 * requesting host, so those can need a manual clear on the other sites. A
+	 * CDN or proxy cache that no active plugin manages is out of reach here.
+	 *
+	 * @return void
+	 */
+	private function purge_page_caches(): void {
+		// WP Rocket.
+		if ( function_exists( 'rocket_clean_domain' ) ) {
+			rocket_clean_domain();
+		}
+
+		// W3 Total Cache.
+		if ( function_exists( 'w3tc_flush_all' ) ) {
+			w3tc_flush_all();
+		}
+
+		// WP Super Cache: blog 0 clears the whole cache on a single site.
+		if ( function_exists( 'wp_cache_clear_cache' ) ) {
+			wp_cache_clear_cache( is_multisite() ? get_current_blog_id() : 0 );
+		}
+
+		// LiteSpeed Cache.
+		if ( has_action( 'litespeed_purge_all' ) ) {
+			do_action( 'litespeed_purge_all' );
+		}
+
+		// WP Fastest Cache, including minified files.
+		if ( function_exists( 'wpfc_clear_all_cache' ) ) {
+			wpfc_clear_all_cache( true );
+		}
+
+		// SiteGround Speed Optimizer.
+		if ( function_exists( 'sg_cachepress_purge_everything' ) ) {
+			sg_cachepress_purge_everything();
+		}
+
+		// Nginx Helper.
+		if ( has_action( 'rt_nginx_helper_purge_all' ) ) {
+			do_action( 'rt_nginx_helper_purge_all' );
+		}
+
+		// Cache Enabler, for the current site.
+		if ( has_action( 'cache_enabler_clear_site_cache' ) ) {
+			do_action( 'cache_enabler_clear_site_cache' );
+		}
+
+		// Breeze.
+		if ( has_action( 'breeze_clear_all_cache' ) ) {
+			do_action( 'breeze_clear_all_cache' );
+		}
+
+		// Hummingbird.
+		if ( has_action( 'wphb_clear_page_cache' ) ) {
+			do_action( 'wphb_clear_page_cache' );
+		}
+
+		// Proxy Cache Purge: the request its own "Purge all" sends.
+		if (
+			class_exists( 'VarnishPurger' )
+			&& method_exists( 'VarnishPurger', 'purge_url' )
+			&& method_exists( 'VarnishPurger', 'the_home_url' )
+		) {
+			VarnishPurger::purge_url( VarnishPurger::the_home_url() . '/?vhp-regex' );
+		}
+
+		// Cloudflare, when its page cache or APO is configured.
+		$cloudflare_hooks = $GLOBALS['cloudflareHooks'] ?? null;
+
+		if ( is_object( $cloudflare_hooks ) && method_exists( $cloudflare_hooks, 'purgeCacheEverything' ) ) {
+			$cloudflare_hooks->purgeCacheEverything();
+		}
+
+		// WP Engine.
+		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
+			WpeCommon::purge_varnish_cache();
+		}
+
+		// Pantheon.
+		if ( function_exists( 'pantheon_wp_clear_edge_all' ) ) {
+			pantheon_wp_clear_edge_all();
+		}
+
+		// Kinsta.
+		$kinsta_purge = $GLOBALS['kinsta_cache']->kinsta_cache_purge ?? null;
+
+		if ( is_object( $kinsta_purge ) && method_exists( $kinsta_purge, 'purge_complete_caches' ) ) {
+			$kinsta_purge->purge_complete_caches();
+		}
+
+		// WordPress VIP edge cache.
+		if ( function_exists( 'wpvip_purge_edge_cache_for_site' ) ) {
+			wpvip_purge_edge_cache_for_site();
+		}
+
+		// Object cache, which also holds Batcache-style page caches.
+		wp_cache_flush();
 	}
 }
