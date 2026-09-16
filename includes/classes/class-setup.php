@@ -2583,19 +2583,6 @@ class Setup {
 	private function purge_rsvp_page_caches(): void {
 		$post_ids = $this->get_rsvp_page_ids();
 
-		/**
-		 * Filters the posts whose cached pages are cleared.
-		 *
-		 * A site that renders RSVP responses somewhere this does not find can
-		 * add those post IDs, and returning an empty array skips the pass.
-		 *
-		 * @param int[] $post_ids Post IDs whose cached pages will be cleared.
-		 * @return int[] Post IDs to clear.
-		 */
-		$post_ids = (array) apply_filters( 'gatherpress_alpha_rsvp_page_cache_post_ids', $post_ids );
-
-		$post_ids = array_values( array_filter( array_map( 'intval', $post_ids ) ) );
-
 		if ( empty( $post_ids ) ) {
 			return;
 		}
@@ -2734,16 +2721,7 @@ class Setup {
 	 * @return void
 	 */
 	private function purge_pages_from_remote_caches( array $post_ids ): void {
-		/**
-		 * Filters how many pages are cleared one by one before a cache that
-		 * purges over the network is cleared in full instead.
-		 *
-		 * @param int $limit Maximum number of pages to clear individually.
-		 * @return int Maximum number of pages to clear individually.
-		 */
-		$limit = (int) apply_filters( 'gatherpress_alpha_rsvp_page_cache_request_limit', self::PURGE_REQUEST_LIMIT );
-
-		$page_by_page = count( $post_ids ) <= $limit;
+		$page_by_page = count( $post_ids ) <= self::PURGE_REQUEST_LIMIT;
 
 		// LiteSpeed Cache.
 		if ( has_action( 'litespeed_purge_post' ) && has_action( 'litespeed_purge_all' ) ) {
