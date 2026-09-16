@@ -1,4 +1,4 @@
 Significance: patch
 Type: added
 
-Add the 0.35.4 migration that clears page caches. GatherPress 0.35.4 changes the markup the RSVP response list refreshes from, so pages cached before the update stop refreshing their response lists until the cache is cleared. The migration clears the page cache of supported caching plugins and hosts when they are active and flushes the object cache.
+Add the 0.35.4 migration that clears cached RSVP pages. GatherPress 0.35.4 changes the markup the RSVP response list refreshes from, so pages cached before the update stop refreshing their response lists until they are cleared. The migration finds every published page that renders an RSVP response block and clears just those pages from supported caching plugins and hosts, falling back to a full purge only for a cache that purges over the network when more than fifty pages are affected.

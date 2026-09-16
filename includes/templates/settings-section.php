@@ -113,14 +113,15 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 <details class="gatherpress-alpha-version" open>
 	<summary><?php esc_html_e( 'Version 0.35.4 Updates', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.4' ) ); ?></summary>
 
-	<p><strong><?php esc_html_e( 'Page Caches Cleared:', 'gatherpress-alpha' ); ?></strong></p>
-	<p><?php esc_html_e( 'GatherPress 0.35.4 changes the markup the RSVP response list refreshes from. Pages a cache saved before the update keep the old markup, so their response lists stop refreshing until the cache is cleared. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<p><strong><?php esc_html_e( 'Cached RSVP Pages Cleared:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'GatherPress 0.35.4 changes the markup the RSVP response list refreshes from. Pages a cache saved before the update keep the old markup, so their response lists stop refreshing until those pages are cleared. This migration will:', 'gatherpress-alpha' ); ?></p>
 	<ul>
-		<li><?php esc_html_e( 'Clear the page cache of supported caching plugins and hosts when they are active', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Flush the object cache, which also clears page caches stored there', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Find every published page that renders an RSVP response block, whether the block sits in the page content, in a synced pattern, or in a block template', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Clear just those pages from supported caching plugins and hosts, leaving the rest of the cache in place', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Clear a whole cache only where clearing pages one by one would mean a request per page and more than fifty pages are affected', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Leave posts, settings, and RSVPs untouched', 'gatherpress-alpha' ); ?></li>
 	</ul>
-	<p><em><?php esc_html_e( 'A CDN or proxy cache this plugin cannot reach, such as one in front of the site, still needs to be cleared from its own dashboard.', 'gatherpress-alpha' ); ?></em></p>
+	<p><em><?php esc_html_e( 'A CDN or proxy cache this plugin cannot reach, such as one in front of the site, still needs to be cleared from its own dashboard. Archive pages are not cleared; their cached copies age out on their own.', 'gatherpress-alpha' ); ?></em></p>
 </details>
 
 <details class="gatherpress-alpha-version">

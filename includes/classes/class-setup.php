@@ -36,6 +36,21 @@ class Setup {
 	use Singleton;
 
 	/**
+	 * Block name that renders the RSVP response list.
+	 *
+	 * @var string
+	 */
+	private const RSVP_RESPONSE_BLOCK = 'gatherpress/rsvp-response';
+
+	/**
+	 * How many pages are cleared one by one before a cache that purges over the
+	 * network is cleared in full instead.
+	 *
+	 * @var int
+	 */
+	private const PURGE_REQUEST_LIMIT = 50;
+
+	/**
 	 * Constructor for the Setup class.
 	 *
 	 * Initializes and sets up various components of the plugin.
@@ -2548,117 +2563,333 @@ class Setup {
 	 *
 	 * GatherPress 0.35.4 changes the markup the RSVP response list refreshes
 	 * from, so a page a cache saved before the update keeps the old markup and
-	 * its response list stops refreshing until the cache is cleared.
+	 * its response list stops refreshing until that page is cleared.
 	 *
 	 * @return void
 	 */
 	private function fix__0_35_4(): void {
-		$this->purge_page_caches();
+		$this->purge_rsvp_page_caches();
 	}
 
 	/**
-	 * Clears the page cache of every supported caching plugin and host that is
-	 * active, then flushes the object cache.
+	 * Clears the cached copy of every page that carries an RSVP response block.
 	 *
-	 * Each call is the plugin's or host's own purge-everything entry point,
-	 * guarded so an inactive one is skipped. On multisite `fix()` runs this once
-	 * per site; most purges then clear the site being run, but WP Rocket and
-	 * W3 Total Cache only purge once per request and WP Fastest Cache clears the
-	 * requesting host, so those can need a manual clear on the other sites. A
-	 * CDN or proxy cache that no active plugin manages is out of reach here.
+	 * Only those pages hold the old markup, so the rest of the cache is left
+	 * alone rather than emptied -- on a large site a full purge sends every
+	 * visitor to the origin at once.
 	 *
 	 * @return void
 	 */
-	private function purge_page_caches(): void {
+	private function purge_rsvp_page_caches(): void {
+		$post_ids = $this->get_rsvp_page_ids();
+
+		/**
+		 * Filters the posts whose cached pages are cleared.
+		 *
+		 * A site that renders RSVP responses somewhere this does not find can
+		 * add those post IDs, and returning an empty array skips the pass.
+		 *
+		 * @param int[] $post_ids Post IDs whose cached pages will be cleared.
+		 * @return int[] Post IDs to clear.
+		 */
+		$post_ids = (array) apply_filters( 'gatherpress_alpha_rsvp_page_cache_post_ids', $post_ids );
+
+		$post_ids = array_values( array_filter( array_map( 'intval', $post_ids ) ) );
+
+		if ( empty( $post_ids ) ) {
+			return;
+		}
+
+		foreach ( $post_ids as $post_id ) {
+			$this->purge_page_from_local_caches( $post_id );
+		}
+
+		$this->purge_pages_from_remote_caches( $post_ids );
+		$this->purge_pages_from_batched_caches( $post_ids );
+	}
+
+	/**
+	 * Published posts whose pages render an RSVP response block.
+	 *
+	 * Three ways a page can carry one: the block sits in the post's own
+	 * content, it sits in a synced pattern the post embeds, or it sits in a
+	 * block template or template part, which reaches every post that takes
+	 * RSVPs. Archives are not covered -- their cached copies age out on their
+	 * own.
+	 *
+	 * @return int[] Post IDs, deduplicated.
+	 */
+	private function get_rsvp_page_ids(): array {
+		global $wpdb;
+
+		$block_like = '%' . $wpdb->esc_like( self::RSVP_RESPONSE_BLOCK ) . '%';
+		$post_ids   = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts}
+				WHERE post_status = 'publish'
+				AND post_type NOT IN ( 'wp_template', 'wp_template_part', 'wp_block' )
+				AND post_content LIKE %s",
+				$block_like
+			)
+		);
+
+		// A synced pattern carries the block into every post that embeds it.
+		$pattern_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'wp_block' AND post_content LIKE %s",
+				$block_like
+			)
+		);
+
+		foreach ( $pattern_ids as $pattern_id ) {
+			$post_ids = array_merge(
+				$post_ids,
+				$wpdb->get_col(
+					$wpdb->prepare(
+						"SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_content LIKE %s",
+						'%' . $wpdb->esc_like( sprintf( '"ref":%d', (int) $pattern_id ) ) . '%'
+					)
+				)
+			);
+		}
+
+		// A template renders the block on every post that takes RSVPs.
+		if ( $this->rsvp_block_in_block_templates() ) {
+			$post_ids = array_merge(
+				$post_ids,
+				get_posts(
+					array(
+						'post_type'      => get_post_types_by_support( 'gatherpress-rsvp' ),
+						'post_status'    => 'publish',
+						'posts_per_page' => -1,
+						'fields'         => 'ids',
+						'no_found_rows'  => true,
+					)
+				)
+			);
+		}
+
+		return array_values( array_unique( array_map( 'intval', $post_ids ) ) );
+	}
+
+	/**
+	 * Clears one page from every cache that stores pages on this server.
+	 *
+	 * These purges are local file, header or object-cache work, so they run for
+	 * every affected page no matter how many there are.
+	 *
+	 * @param int $post_id The post whose page is cleared.
+	 * @return void
+	 */
+	private function purge_page_from_local_caches( int $post_id ): void {
+		$permalink = (string) get_permalink( $post_id );
+
 		// WP Rocket.
-		if ( function_exists( 'rocket_clean_domain' ) ) {
-			rocket_clean_domain();
+		if ( function_exists( 'rocket_clean_post' ) ) {
+			rocket_clean_post( $post_id );
 		}
 
-		// W3 Total Cache.
-		if ( function_exists( 'w3tc_flush_all' ) ) {
-			w3tc_flush_all();
+		// W3 Total Cache, which collects the pages and deletes them on shutdown.
+		if ( function_exists( 'w3tc_flush_post' ) ) {
+			w3tc_flush_post( $post_id );
 		}
 
-		// WP Super Cache: blog 0 clears the whole cache on a single site.
-		if ( function_exists( 'wp_cache_clear_cache' ) ) {
-			wp_cache_clear_cache( is_multisite() ? get_current_blog_id() : 0 );
+		// WP Super Cache.
+		if ( function_exists( 'wpsc_delete_post_cache' ) ) {
+			wpsc_delete_post_cache( $post_id );
 		}
+
+		// WP Fastest Cache, by URL: the per-post call also purges a whole
+		// Cloudflare zone when one is configured.
+		if ( function_exists( 'wpfc_clear_cache_by_url' ) && '' !== $permalink ) {
+			wpfc_clear_cache_by_url( $permalink );
+		}
+
+		// Cache Enabler.
+		if ( has_action( 'cache_enabler_clear_page_cache_by_post' ) ) {
+			do_action( 'cache_enabler_clear_page_cache_by_post', $post_id );
+		}
+
+		// Hummingbird, which purges everything when handed a falsy post.
+		if ( has_action( 'wphb_clear_page_cache' ) && 0 !== $post_id ) {
+			do_action( 'wphb_clear_page_cache', $post_id );
+		}
+
+		// Batcache, whose manager plugin is what defines this.
+		if ( function_exists( 'batcache_clear_url' ) && '' !== $permalink ) {
+			batcache_clear_url( $permalink );
+		}
+	}
+
+	/**
+	 * Clears the affected pages from every cache that purges over the network.
+	 *
+	 * Each of these sends a request per page, or in LiteSpeed's case carries one
+	 * purge tag per page in a response header, so clearing thousands one by one
+	 * would be slower and heavier than clearing the whole cache once. Past
+	 * `PURGE_REQUEST_LIMIT` pages each of them gets a single full purge instead,
+	 * the same trade Proxy Cache Purge makes on its own at fifty URLs.
+	 *
+	 * @param int[] $post_ids Posts whose pages are cleared.
+	 * @return void
+	 */
+	private function purge_pages_from_remote_caches( array $post_ids ): void {
+		/**
+		 * Filters how many pages are cleared one by one before a cache that
+		 * purges over the network is cleared in full instead.
+		 *
+		 * @param int $limit Maximum number of pages to clear individually.
+		 * @return int Maximum number of pages to clear individually.
+		 */
+		$limit = (int) apply_filters( 'gatherpress_alpha_rsvp_page_cache_request_limit', self::PURGE_REQUEST_LIMIT );
+
+		$page_by_page = count( $post_ids ) <= $limit;
 
 		// LiteSpeed Cache.
-		if ( has_action( 'litespeed_purge_all' ) ) {
-			do_action( 'litespeed_purge_all' );
-		}
-
-		// WP Fastest Cache, including minified files.
-		if ( function_exists( 'wpfc_clear_all_cache' ) ) {
-			wpfc_clear_all_cache( true );
+		if ( has_action( 'litespeed_purge_post' ) && has_action( 'litespeed_purge_all' ) ) {
+			if ( $page_by_page ) {
+				foreach ( $post_ids as $post_id ) {
+					do_action( 'litespeed_purge_post', $post_id );
+				}
+			} else {
+				do_action( 'litespeed_purge_all' );
+			}
 		}
 
 		// SiteGround Speed Optimizer.
-		if ( function_exists( 'sg_cachepress_purge_everything' ) ) {
-			sg_cachepress_purge_everything();
+		if ( function_exists( 'sg_cachepress_purge_cache' ) && function_exists( 'sg_cachepress_purge_everything' ) ) {
+			if ( $page_by_page ) {
+				foreach ( $post_ids as $post_id ) {
+					$permalink = (string) get_permalink( $post_id );
+
+					if ( '' !== $permalink ) {
+						sg_cachepress_purge_cache( $permalink );
+					}
+				}
+			} else {
+				sg_cachepress_purge_everything();
+			}
 		}
 
-		// Nginx Helper.
-		if ( has_action( 'rt_nginx_helper_purge_all' ) ) {
-			do_action( 'rt_nginx_helper_purge_all' );
-		}
+		// Nginx Helper, whose default purge method is an HTTP request per URL.
+		$nginx_purger = $GLOBALS['nginx_purger'] ?? null;
 
-		// Cache Enabler, for the current site.
-		if ( has_action( 'cache_enabler_clear_site_cache' ) ) {
-			do_action( 'cache_enabler_clear_site_cache' );
+		if ( is_object( $nginx_purger ) && method_exists( $nginx_purger, 'purge_post' ) ) {
+			if ( $page_by_page ) {
+				foreach ( $post_ids as $post_id ) {
+					$nginx_purger->purge_post( $post_id );
+				}
+			} elseif ( has_action( 'rt_nginx_helper_purge_all' ) ) {
+				do_action( 'rt_nginx_helper_purge_all' );
+			}
 		}
 
 		// Breeze.
-		if ( has_action( 'breeze_clear_all_cache' ) ) {
-			do_action( 'breeze_clear_all_cache' );
+		if ( has_action( 'purge_post_cache' ) && has_action( 'breeze_clear_all_cache' ) ) {
+			if ( $page_by_page ) {
+				foreach ( $post_ids as $post_id ) {
+					do_action( 'purge_post_cache', $post_id );
+				}
+			} else {
+				do_action( 'breeze_clear_all_cache' );
+			}
 		}
 
-		// Hummingbird.
-		if ( has_action( 'wphb_clear_page_cache' ) ) {
-			do_action( 'wphb_clear_page_cache' );
-		}
-
-		// Proxy Cache Purge: the request its own "Purge all" sends.
+		// Proxy Cache Purge, which converts to a full purge on its own past
+		// fifty URLs, so the fallback only matches what it would do anyway.
 		if (
 			class_exists( 'VarnishPurger' )
 			&& method_exists( 'VarnishPurger', 'purge_url' )
 			&& method_exists( 'VarnishPurger', 'the_home_url' )
 		) {
-			VarnishPurger::purge_url( VarnishPurger::the_home_url() . '/?vhp-regex' );
+			if ( $page_by_page ) {
+				foreach ( $post_ids as $post_id ) {
+					$permalink = (string) get_permalink( $post_id );
+
+					if ( '' !== $permalink ) {
+						VarnishPurger::purge_url( $permalink );
+					}
+				}
+			} else {
+				VarnishPurger::purge_url( VarnishPurger::the_home_url() . '/?vhp-regex' );
+			}
 		}
 
-		// Cloudflare, when its page cache or APO is configured.
-		$cloudflare_hooks = $GLOBALS['cloudflareHooks'] ?? null;
-
-		if ( is_object( $cloudflare_hooks ) && method_exists( $cloudflare_hooks, 'purgeCacheEverything' ) ) {
-			$cloudflare_hooks->purgeCacheEverything();
-		}
-
-		// WP Engine.
+		// WP Engine, where an argument purges the one post and none purges the domain.
 		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
-			WpeCommon::purge_varnish_cache();
+			if ( $page_by_page ) {
+				foreach ( $post_ids as $post_id ) {
+					WpeCommon::purge_varnish_cache( $post_id );
+				}
+			} else {
+				WpeCommon::purge_varnish_cache();
+			}
 		}
 
-		// Pantheon.
-		if ( function_exists( 'pantheon_wp_clear_edge_all' ) ) {
-			pantheon_wp_clear_edge_all();
-		}
-
-		// Kinsta.
+		// Kinsta, which sends two requests per post.
 		$kinsta_purge = $GLOBALS['kinsta_cache']->kinsta_cache_purge ?? null;
 
-		if ( is_object( $kinsta_purge ) && method_exists( $kinsta_purge, 'purge_complete_caches' ) ) {
-			$kinsta_purge->purge_complete_caches();
+		if ( is_object( $kinsta_purge ) && method_exists( $kinsta_purge, 'initiate_purge' ) ) {
+			if ( $page_by_page ) {
+				foreach ( $post_ids as $post_id ) {
+					$kinsta_purge->initiate_purge( $post_id );
+				}
+			} elseif ( method_exists( $kinsta_purge, 'purge_complete_caches' ) ) {
+				$kinsta_purge->purge_complete_caches();
+			}
+		}
+	}
+
+	/**
+	 * Clears the affected pages from caches that take the whole set at once.
+	 *
+	 * Both of these purge in bulk, so they are handed every page in one call
+	 * rather than one call per page.
+	 *
+	 * @param int[] $post_ids Posts whose pages are cleared.
+	 * @return void
+	 */
+	private function purge_pages_from_batched_caches( array $post_ids ): void {
+		// Pantheon, by the surrogate keys its own purger uses per post.
+		if (
+			function_exists( 'pantheon_wp_clear_edge_keys' )
+			&& function_exists( 'pantheon_wp_prefix_surrogate_keys_with_blog_id' )
+		) {
+			$keys = array();
+
+			foreach ( $post_ids as $post_id ) {
+				$keys[] = 'post-' . $post_id;
+				$keys[] = 'rest-post-' . $post_id;
+			}
+
+			pantheon_wp_clear_edge_keys( pantheon_wp_prefix_surrogate_keys_with_blog_id( $keys ) );
 		}
 
-		// WordPress VIP edge cache.
-		if ( function_exists( 'wpvip_purge_edge_cache_for_site' ) ) {
-			wpvip_purge_edge_cache_for_site();
+		// Cloudflare, which takes post IDs and purges them in chunks of its own.
+		$cloudflare_hooks = $GLOBALS['cloudflareHooks'] ?? null;
+
+		if ( is_object( $cloudflare_hooks ) && method_exists( $cloudflare_hooks, 'purgeCacheByRelevantURLs' ) ) {
+			$cloudflare_hooks->purgeCacheByRelevantURLs( $post_ids );
+		}
+	}
+
+	/**
+	 * Whether a block template or template part carries an RSVP response block.
+	 *
+	 * Reads them through `get_block_templates()` so a template the theme ships
+	 * as a file counts the same as one saved in the database.
+	 *
+	 * @return bool True when a template or template part carries the block.
+	 */
+	private function rsvp_block_in_block_templates(): bool {
+		foreach ( array( 'wp_template', 'wp_template_part' ) as $template_type ) {
+			foreach ( get_block_templates( array(), $template_type ) as $template ) {
+				if ( str_contains( (string) $template->content, self::RSVP_RESPONSE_BLOCK ) ) {
+					return true;
+				}
+			}
 		}
 
-		// Object cache, which also holds Batcache-style page caches.
-		wp_cache_flush();
+		return false;
 	}
 }
