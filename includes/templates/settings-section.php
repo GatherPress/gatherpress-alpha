@@ -111,6 +111,30 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </p>
 
 <details class="gatherpress-alpha-version" open>
+	<summary><?php esc_html_e( 'Version 0.36.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Settings and Event Meta Renamed:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'Several settings and two event meta keys were renamed so their names say what they mean. Maximum Attendance Limit is now Capacity, Maximum Number of Guests is now Guest Limit, and the six Venue Map defaults drop the redundant word "default". This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename the thirteen renamed settings in place, keeping each value', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Rename the matching event meta: gatherpress_max_attendance_limit becomes gatherpress_capacity, and gatherpress_max_guest_limit becomes gatherpress_guest_limit', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Drop a stale row wherever the new name already holds a value, so no event is left with two', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'On multisite, rename the network\'s own copies of those settings and update the list of options subsites inherit, neither of which a per-site pass can reach', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave settings that were not renamed untouched, so it is safe to run more than once', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'GatherPress 0.36.0 still answers to the former names, so nothing breaks before this runs. That fallback is removed in 0.37.0, so this migration needs to have run before updating to it.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'Event Date Separator Reset:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The Event Date block used to save the English word "to" as its default separator, and GatherPress translated that value back when rendering. 0.36.0 stopped doing that, so a separator is now shown exactly as it was typed. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Remove the saved "to" separator from Event Date blocks in events, templates, and template parts, which puts them back on the translated default', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave a separator somebody chose, such as a different word or a dash, exactly as it is', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave every other Event Date setting untouched', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Blocks that keep the old value show the English "to" on a translated site until this runs.', 'gatherpress-alpha' ); ?></em></p>
+</details>
+
+<details class="gatherpress-alpha-version">
 	<summary><?php esc_html_e( 'Version 0.35.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Icon Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
