@@ -481,19 +481,19 @@ class Setup {
 	 */
 	private function get_renamed_settings(): array {
 		return array(
-			'max_attendance_limit'          => 'capacity',
-			'max_guest_limit'               => 'guest_limit',
-			'rsvp_cleanup_switch'           => 'enable_rsvp_cleanup',
-			'rsvp_cleanup_interval'         => 'rsvp_cleanup_multiplier',
-			'post_or_event_date'            => 'use_event_date_for_publish',
-			'map_tile_url_custom'           => 'custom_map_tile_url',
-			'map_tile_attribution_custom'   => 'custom_map_tile_attribution',
-			'venue_map_default_type'        => 'venue_map_type',
-			'venue_map_default_render_mode' => 'venue_map_render_mode',
-			'venue_map_default_zoom'        => 'venue_map_zoom',
-			'venue_map_default_height'      => 'venue_map_height',
+			'max_attendance_limit'           => 'capacity',
+			'max_guest_limit'                => 'guest_limit',
+			'rsvp_cleanup_switch'            => 'enable_rsvp_cleanup',
+			'rsvp_cleanup_interval'          => 'rsvp_cleanup_multiplier',
+			'post_or_event_date'             => 'use_event_date_for_publish',
+			'map_tile_url_custom'            => 'custom_map_tile_url',
+			'map_tile_attribution_custom'    => 'custom_map_tile_attribution',
+			'venue_map_default_type'         => 'venue_map_type',
+			'venue_map_default_render_mode'  => 'venue_map_render_mode',
+			'venue_map_default_zoom'         => 'venue_map_zoom',
+			'venue_map_default_height'       => 'venue_map_height',
 			'venue_map_default_aspect_ratio' => 'venue_map_aspect_ratio',
-			'venue_map_default_scale'       => 'venue_map_scale',
+			'venue_map_default_scale'        => 'venue_map_scale',
 		);
 	}
 
