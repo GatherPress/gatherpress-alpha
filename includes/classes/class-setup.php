@@ -34,6 +34,27 @@ class Setup {
 	use Singleton;
 
 	/**
+	 * Every version that ships a compatibility fix, oldest first.
+	 *
+	 * Each entry has a matching `fix__<version with underscores>()` method.
+	 * Both `run_fixes()` and `has_pending_fixes()` read this, so the banner
+	 * and the Pending badges on the settings screen cannot answer differently
+	 * from what a run would actually do.
+	 *
+	 * @var string[]
+	 */
+	const FIX_VERSIONS = array(
+		'0.29.0',
+		'0.30.0',
+		'0.31.0',
+		'0.32.0',
+		'0.33.0',
+		'0.34.0',
+		'0.35.0',
+		'0.36.0',
+	);
+
+	/**
 	 * Whether the network-level settings pass has already run this request.
 	 *
 	 * @var bool
@@ -84,15 +105,27 @@ class Setup {
 	/**
 	 * Whether compatibility updates are still pending on this site.
 	 *
-	 * `run_fixes()` records GATHERPRESS_ALPHA_VERSION once it completes, so a
-	 * stored value that differs from the running version means the updates for
-	 * this version have not been applied. A site that has never run them stores
-	 * nothing at all.
+	 * Asks the same question `run_fixes()` asks, one version at a time, rather
+	 * than comparing the stored version string to the running one. Those two
+	 * answers differ during a version's own alpha cycle: a site that ran at
+	 * 0.36.0-alpha.0 has that exact string stored, so a string comparison says
+	 * nothing is pending, while `should_run_fix()` correctly reports the 0.36.0
+	 * fix as pending because an unstable run leaves fixes at or above its base
+	 * version to run again. That mismatch hid the notice in the one window
+	 * where a fix is most likely to have changed underneath somebody.
 	 *
-	 * @return bool True when updates have not been applied for the running version.
+	 * @return bool True when any fix would run.
 	 */
 	public function has_pending_fixes(): bool {
-		return GATHERPRESS_ALPHA_VERSION !== $this->get_last_run_version();
+		$last_version = $this->get_last_run_version();
+
+		foreach ( self::FIX_VERSIONS as $fix_version ) {
+			if ( $this->should_run_fix( $fix_version, $last_version ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -426,36 +459,15 @@ class Setup {
 	private function run_fixes(): void {
 		$last_version = $this->get_last_run_version();
 
-		if ( $this->should_run_fix( '0.29.0', $last_version ) ) {
-			$this->fix__0_29_0();
-		}
+		foreach ( self::FIX_VERSIONS as $fix_version ) {
+			if ( ! $this->should_run_fix( $fix_version, $last_version ) ) {
+				continue;
+			}
 
-		if ( $this->should_run_fix( '0.30.0', $last_version ) ) {
-			$this->fix__0_30_0();
-		}
+			// '0.36.0' resolves to fix__0_36_0(), the naming every fix uses.
+			$method = sprintf( 'fix__%s', str_replace( '.', '_', $fix_version ) );
 
-		if ( $this->should_run_fix( '0.31.0', $last_version ) ) {
-			$this->fix__0_31_0();
-		}
-
-		if ( $this->should_run_fix( '0.32.0', $last_version ) ) {
-			$this->fix__0_32_0();
-		}
-
-		if ( $this->should_run_fix( '0.33.0', $last_version ) ) {
-			$this->fix__0_33_0();
-		}
-
-		if ( $this->should_run_fix( '0.34.0', $last_version ) ) {
-			$this->fix__0_34_0();
-		}
-
-		if ( $this->should_run_fix( '0.35.0', $last_version ) ) {
-			$this->fix__0_35_0();
-		}
-
-		if ( $this->should_run_fix( '0.36.0', $last_version ) ) {
-			$this->fix__0_36_0();
+			$this->$method();
 		}
 
 		// Update the stored version to current plugin version.
