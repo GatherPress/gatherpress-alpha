@@ -7,7 +7,7 @@ name: Release
 # into CHANGELOG.md under a new version header (and auto-PR'd back to develop
 # for review).
 #
-# Pushing a tag like `0.34.0-alpha.1`, `-beta.1`, or `-rc.1` cuts a pre-release:
+# Pushing a tag like `0.34.0-alpha.1` or `0.34.0-beta.1` cuts a pre-release:
 # the same rolled-up changelog body that would ship at stable release shows
 # up on a GitHub Pre-Release (marked NOT-latest), but the rollup is computed
 # in an ephemeral checkout — no commit, no PR, no entry files deleted.
@@ -75,8 +75,8 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             version="${INPUT_VERSION}"
 
-            if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
-              echo "::error::'${version}' is not a valid version (X.Y.Z or X.Y.Z-alpha.N/-beta.N/-rc.N)."
+            if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)\.[0-9]+)?$ ]]; then
+              echo "::error::'${version}' is not a valid version (X.Y.Z or X.Y.Z-alpha.N/-beta.N)."
               exit 1
             fi
 
@@ -99,20 +99,24 @@ jobs:
           # It is not a build: nothing should reach the Releases tab under it.
           # Pre-release numbering starts at .1, so no suffix ending in .0 is
           # ever a real build.
-          if [[ "${version}" =~ -(alpha|beta|rc)\.0$ ]]; then
+          if [[ "${version}" =~ -(alpha|beta)\.0$ ]]; then
             echo "::error::'${version}' is a cycle marker, not a release. Pre-releases start at .1."
             exit 1
           fi
 
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
-          # Pre-release suffix detection: alpha.N, beta.N, rc.N (per SemVer).
-          if [[ "${version}" =~ -(alpha|beta|rc)\. ]]; then
+          # Pre-releases are alpha.N or beta.N. Any other suffix fails here
+          # instead of falling through to the stable path.
+          if [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta)\.[0-9]+$ ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
             echo "Version ${version} is a pre-release."
-          else
+          elif [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
             echo "Version ${version} is a stable release."
+          else
+            echo "::error::'${version}' is not a release version (X.Y.Z, X.Y.Z-alpha.N or X.Y.Z-beta.N)."
+            exit 1
           fi
 
   # Always runs: aggregate `.github/changelog/*` into a new [X.Y.Z] section
