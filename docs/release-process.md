@@ -31,14 +31,14 @@ refuses it — so nothing reaches the Releases tab under it.
 
 ## What gets automated
 
-Pushing a tag of the form `X.Y.Z` (stable) or `X.Y.Z-alpha.N` / `-beta.N` /
-`-rc.N` (pre-release) triggers `release.yml`. The workflow:
+Pushing a tag of the form `X.Y.Z` (stable) or `X.Y.Z-alpha.N` / `-beta.N`
+(pre-release) triggers `release.yml`. The workflow:
 
 | Tag pattern             | Distro zip                            | GitHub Release entry | Changelog body source                                                          |
 | ----------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------------------------ |
 | `0.34.0`                | `gatherpress-alpha.0.34.0.zip`        | Release (latest)     | Rolled-up `[0.34.0]` section, committed back to `CHANGELOG.md` via auto-PR     |
 | `0.34.0-alpha.1`        | `gatherpress-alpha.0.34.0-alpha.1.zip`| Pre-Release          | Rolled-up `[0.34.0-alpha.1]` section computed in an ephemeral checkout (no commit) |
-| `0.34.0-beta.1` / `-rc.1` | Same shape as alpha                 | Pre-Release          | Same shape as alpha                                                            |
+| `0.34.0-beta.1`         | Same shape as alpha                   | Pre-Release          | Same shape as alpha                                                            |
 
 GatherPress Alpha does **not** deploy to wordpress.org. It is distributed only
 via GitHub releases. The distro zip's outer filename carries the version; the
@@ -96,7 +96,7 @@ git push origin 0.34.0-alpha.1
 
 **What the workflow does:**
 
-1. Detects the tag is a pre-release (the `-alpha.` / `-beta.` / `-rc.` suffix).
+1. Detects the tag is a pre-release (the `-alpha.` / `-beta.` suffix).
 2. Builds `gatherpress-alpha.0.34.0-alpha.1.zip` via `npm run plugin-zip`.
 3. Runs `composer changelog:write --use-version=0.34.0-alpha.1 ...` in an ephemeral working copy and extracts the resulting `[0.34.0-alpha.1]` section as the release body. The changes never get committed anywhere — they evaporate when the job ends.
 4. Creates a GitHub **Pre-Release** with the zip attached and the rolled-up body. The Pre-Release is **not** marked as the latest release.
@@ -126,7 +126,7 @@ git push origin 0.34.0
 
 **What the workflow does:**
 
-1. Detects the tag is stable (no `-alpha.` / `-beta.` / `-rc.` suffix).
+1. Detects the tag is stable (no `-alpha.` / `-beta.` suffix).
 2. Runs `composer changelog:write --use-version=0.34.0 --release-date=<today> --add-pr-num --deduplicate=-1 --yes`. This:
     - Aggregates every file in `.github/changelog/` into a new `## [0.34.0] - YYYY-MM-DD` section at the top of `CHANGELOG.md`.
     - Appends `[#NNNN]` to each entry from the originating PR's merge commit subject.
@@ -193,7 +193,6 @@ auto-PR.
 - **Stable**: `0.34.0`, `0.35.0`, `1.0.0`. Three numeric components, no suffix.
 - **Alpha**: `0.34.0-alpha.1`, `0.34.0-alpha.2`. Use for early in-cycle builds.
 - **Beta**: `0.34.0-beta.1`. Use for feature-complete in-cycle builds.
-- **Release candidate**: `0.34.0-rc.1`. Use for "we believe this is shippable."
 
 The version must always match the GatherPress core version that Alpha is
 bridging from. Alpha's coexistence guard refuses to boot if
