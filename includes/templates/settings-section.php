@@ -13,6 +13,12 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 $gatherpress_alpha_last_version = get_option( 'gatherpress_alpha_last_version', null );
 
+// Earlier builds could store an empty version when another plugin's headers hid
+// ours; every fix still counts as pending then, so say it has not run.
+if ( '' === $gatherpress_alpha_last_version ) {
+	$gatherpress_alpha_last_version = null;
+}
+
 /**
  * Whether the fix for a given version is still pending on this site.
  *
@@ -329,6 +335,16 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 
 	const gatherPressAlphaButton = document.getElementById('gatherpress-alpha');
 
+	// Hide the spinner and wait for a paint, so it is gone before the alert blocks the page.
+	function gatherPressAlphaNotify(message) {
+		document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
+
+		return new Promise(resolve => requestAnimationFrame(() => setTimeout(() => {
+			alert(message);
+			resolve();
+		}, 0)));
+	}
+
 	document.getElementById('gatherpress-alpha').addEventListener('click', function(e) {
 		e.preventDefault();
 		gatherPressAlphaButton.disabled = true;
@@ -356,19 +372,18 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 			return response.json(); // Parse JSON from the response.
 		})
 		.then(response => {
-			// Handle the JSON response.
-			if (response.success) {
-				alert('<?php esc_html_e( 'Success!', 'gatherpress-alpha' ); ?>');
-				gatherPressAlphaButton.disabled = false;
-				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
-			} else {
-				alert('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
-				gatherPressAlphaButton.disabled = false;
-				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
+			if (!response.success) {
+				throw new Error('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 			}
+
+			// Reload so the badges reflect the run.
+			return gatherPressAlphaNotify('<?php esc_html_e( 'Success!', 'gatherpress-alpha' ); ?>')
+				.then(() => window.location.reload());
 		})
 		.catch(error => {
-			console.error(error); // Handle any errors.
+			console.error(error);
+			gatherPressAlphaButton.disabled = false;
+			gatherPressAlphaNotify('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 		});
 	});
 </script>
