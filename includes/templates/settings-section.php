@@ -13,10 +13,18 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 $gatherpress_alpha_last_version = get_option( 'gatherpress_alpha_last_version', null );
 
-// An empty string is what earlier builds stored when the version header could not
-// be read; it means "never run", same as Setup::get_last_run_version().
+// Earlier builds could store an empty version when another plugin's headers hid
+// ours; every fix still counts as pending then, so say it has not run.
 if ( '' === $gatherpress_alpha_last_version ) {
 	$gatherpress_alpha_last_version = null;
+}
+
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flag set by the reload after a run.
+if ( isset( $_GET['gatherpress_alpha_applied'] ) ) {
+	wp_admin_notice(
+		esc_html__( 'Compatibility updates applied.', 'gatherpress-alpha' ),
+		array( 'type' => 'success' )
+	);
 }
 
 /**
@@ -362,19 +370,20 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 			return response.json(); // Parse JSON from the response.
 		})
 		.then(response => {
-			// Handle the JSON response.
-			if (response.success) {
-				alert('<?php esc_html_e( 'Success!', 'gatherpress-alpha' ); ?>');
-				gatherPressAlphaButton.disabled = false;
-				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
-			} else {
-				alert('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
-				gatherPressAlphaButton.disabled = false;
-				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
+			if (!response.success) {
+				throw new Error('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 			}
+
+			// Reload so the badges reflect the run; the flag shows the success notice.
+			const url = new URL(window.location.href);
+			url.searchParams.set('gatherpress_alpha_applied', '1');
+			window.location.replace(url);
 		})
 		.catch(error => {
-			console.error(error); // Handle any errors.
+			console.error(error);
+			gatherPressAlphaButton.disabled = false;
+			document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
+			alert('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 		});
 	});
 </script>

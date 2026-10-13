@@ -375,41 +375,7 @@ class Setup {
 	 * @return string|null The last version that ran, or null if never run.
 	 */
 	private function get_last_run_version(): ?string {
-		$version = get_option( 'gatherpress_alpha_last_version', null );
-
-		// An empty string was stored by earlier builds when another plugin's
-		// `extra_plugin_headers` filter pushed the Version header out of first
-		// place; it means "never run", not "ran at version ''".
-		if ( ! is_string( $version ) || '' === $version ) {
-			return null;
-		}
-
-		return $version;
-	}
-
-	/**
-	 * Gets the version of this plugin as declared in its header.
-	 *
-	 * `GATHERPRESS_ALPHA_VERSION` is built with `current( get_file_data() )`,
-	 * which returns the first header found. Plugins that hook
-	 * `extra_plugin_headers` (Ultimate Multisite, WPGraphQL) add headers ahead
-	 * of Version, so that constant can be an empty string. Reading the header by
-	 * key is immune to that.
-	 *
-	 * @return string The plugin version, or the constant if the header is unreadable.
-	 */
-	private function get_running_version(): string {
-		$data = get_file_data(
-			GATHERPRESS_ALPHA_CORE_PATH . '/gatherpress-alpha.php',
-			array( 'version' => 'Version' ),
-			'plugin'
-		);
-
-		if ( ! empty( $data['version'] ) ) {
-			return $data['version'];
-		}
-
-		return (string) GATHERPRESS_ALPHA_VERSION;
+		return get_option( 'gatherpress_alpha_last_version', null );
 	}
 
 	/**
@@ -505,7 +471,7 @@ class Setup {
 		}
 
 		// Update the stored version to current plugin version.
-		$this->set_last_run_version( $this->get_running_version() );
+		$this->set_last_run_version( GATHERPRESS_ALPHA_VERSION );
 	}
 
 	/**
