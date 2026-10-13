@@ -47,9 +47,15 @@ class Cli extends WP_CLI {
 	 * @return void
 	 */
 	public function fix( array $args = array(), array $assoc_args = array() ): void {
-		$setup = Setup::get_instance();
+		$setup      = Setup::get_instance();
+		$site_count = $setup->fix();
 
-		$setup->fix();
-		WP_CLI::success( __( 'Fixes applied successfully.', 'gatherpress-alpha' ) );
+		WP_CLI::success(
+			sprintf(
+				/* translators: %d: number of sites. */
+				_n( 'Fixes applied to %d site.', 'Fixes applied to %d sites.', $site_count, 'gatherpress-alpha' ),
+				$site_count
+			)
+		);
 	}
 }

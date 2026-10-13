@@ -435,27 +435,41 @@ class Setup {
 	 *
 	 * Only runs fixes for versions newer than the last recorded version.
 	 *
-	 * @return void
+	 * @return int Number of sites the fixes ran on.
 	 */
-	public function fix(): void {
-		// Check if running via WP CLI
-		$is_cli = defined( 'WP_CLI' ) && WP_CLI;
+	public function fix(): int {
+		// Check if running via WP CLI.
+		$is_cli     = defined( 'WP_CLI' ) && WP_CLI;
+		$site_count = 0;
 
 		if ( is_multisite() && ( $is_cli || current_user_can( 'manage_network' ) ) ) {
-			$sites = get_sites();
+			// `number => 0` is required so WP doesn't silently cap the loop at 100 sites.
+			$site_ids = get_sites(
+				array(
+					'fields'     => 'ids',
+					'number'     => 0,
+					'network_id' => get_current_site()->id,
+				)
+			);
 
-			foreach ( $sites as $site ) {
-				switch_to_blog( $site->blog_id );
+			foreach ( $site_ids as $site_id ) {
+				switch_to_blog( (int) $site_id );
 
 				$this->run_fixes();
 
 				restore_current_blog();
 			}
+
+			$site_count = count( $site_ids );
 		} elseif ( $is_cli || current_user_can( 'manage_options' ) ) {
 			$this->run_fixes();
+
+			$site_count = 1;
 		} else {
-			wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 		}
+
+		return $site_count;
 	}
 
 	/**
