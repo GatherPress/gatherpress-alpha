@@ -19,14 +19,6 @@ if ( '' === $gatherpress_alpha_last_version ) {
 	$gatherpress_alpha_last_version = null;
 }
 
-// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flag set by the reload after a run.
-if ( isset( $_GET['gatherpress_alpha_applied'] ) ) {
-	wp_admin_notice(
-		esc_html__( 'Compatibility updates applied.', 'gatherpress-alpha' ),
-		array( 'type' => 'success' )
-	);
-}
-
 /**
  * Whether the fix for a given version is still pending on this site.
  *
@@ -343,6 +335,16 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 
 	const gatherPressAlphaButton = document.getElementById('gatherpress-alpha');
 
+	// Hide the spinner and wait for a paint, so it is gone before the alert blocks the page.
+	function gatherPressAlphaNotify(message) {
+		document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
+
+		return new Promise(resolve => requestAnimationFrame(() => setTimeout(() => {
+			alert(message);
+			resolve();
+		}, 0)));
+	}
+
 	document.getElementById('gatherpress-alpha').addEventListener('click', function(e) {
 		e.preventDefault();
 		gatherPressAlphaButton.disabled = true;
@@ -374,16 +376,14 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 				throw new Error('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 			}
 
-			// Reload so the badges reflect the run; the flag shows the success notice.
-			const url = new URL(window.location.href);
-			url.searchParams.set('gatherpress_alpha_applied', '1');
-			window.location.replace(url);
+			// Reload so the badges reflect the run.
+			return gatherPressAlphaNotify('<?php esc_html_e( 'Success!', 'gatherpress-alpha' ); ?>')
+				.then(() => window.location.reload());
 		})
 		.catch(error => {
 			console.error(error);
 			gatherPressAlphaButton.disabled = false;
-			document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
-			alert('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
+			gatherPressAlphaNotify('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 		});
 	});
 </script>
