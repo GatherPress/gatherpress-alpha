@@ -13,6 +13,12 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 $gatherpress_alpha_last_version = get_option( 'gatherpress_alpha_last_version', null );
 
+// An empty string is what earlier builds stored when the version header could not
+// be read; it means "never run", same as Setup::get_last_run_version().
+if ( '' === $gatherpress_alpha_last_version ) {
+	$gatherpress_alpha_last_version = null;
+}
+
 /**
  * Whether the fix for a given version is still pending on this site.
  *
