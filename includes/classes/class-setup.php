@@ -37,9 +37,8 @@ class Setup {
 	 * Every version that ships a compatibility fix, oldest first.
 	 *
 	 * Each entry has a matching `fix__<version with underscores>()` method.
-	 * Both `run_fixes()` and `has_pending_fixes()` read this, so the banner
-	 * and the Pending badges on the settings screen cannot answer differently
-	 * from what a run would actually do.
+	 * Both `run_fixes()` and `is_fix_pending()` read this, so the banner and
+	 * the Pending badges cover the same versions a run does.
 	 *
 	 * @var string[]
 	 */
@@ -105,27 +104,35 @@ class Setup {
 	/**
 	 * Whether compatibility updates are still pending on this site.
 	 *
-	 * Asks the same question `run_fixes()` asks, one version at a time, rather
-	 * than comparing the stored version string to the running one. Those two
-	 * answers differ during a version's own alpha cycle: a site that ran at
-	 * 0.36.0-alpha.0 has that exact string stored, so a string comparison says
-	 * nothing is pending, while `should_run_fix()` correctly reports the 0.36.0
-	 * fix as pending because an unstable run leaves fixes at or above its base
-	 * version to run again. That mismatch hid the notice in the one window
-	 * where a fix is most likely to have changed underneath somebody.
-	 *
-	 * @return bool True when any fix would run.
+	 * @return bool True when any version's fix is pending.
 	 */
 	public function has_pending_fixes(): bool {
-		$last_version = $this->get_last_run_version();
-
 		foreach ( self::FIX_VERSIONS as $fix_version ) {
-			if ( $this->should_run_fix( $fix_version, $last_version ) ) {
+			if ( $this->is_fix_pending( $fix_version ) ) {
 				return true;
 			}
 		}
 
 		return false;
+	}
+
+	/**
+	 * Whether the fix for a given version is still pending on this site.
+	 *
+	 * A run at exactly the running version counts as applied, so the notice
+	 * and badges clear after a run on a pre-release and come back when the
+	 * next one is installed. A run still repeats the fix for its own version
+	 * on a pre-release (see `should_run_fix()`); this only decides what the
+	 * screen shows.
+	 *
+	 * @param string $fix_version The version of the fix to check (e.g., "0.36.0").
+	 * @return bool True when the fix is pending.
+	 */
+	public function is_fix_pending( string $fix_version ): bool {
+		$last_version = $this->get_last_run_version();
+
+		return GATHERPRESS_ALPHA_VERSION !== $last_version
+			&& $this->should_run_fix( $fix_version, $last_version );
 	}
 
 	/**

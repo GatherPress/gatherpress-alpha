@@ -19,30 +19,8 @@ if ( '' === $gatherpress_alpha_last_version ) {
 	$gatherpress_alpha_last_version = null;
 }
 
-/**
- * Whether the fix for a given version is still pending on this site.
- *
- * Mirrors Setup::should_run_fix(): with no recorded run every fix is pending;
- * after an unstable run (e.g. 0.34.0-beta.1) fixes >= the base version are
- * pending; after a stable run only fixes > the base version are pending.
- *
- * @param string $gatherpress_alpha_fix_version The version of the fix to check.
- * @return bool True when the fix has not been applied yet.
- */
-$gatherpress_alpha_is_pending = static function ( string $gatherpress_alpha_fix_version ) use ( $gatherpress_alpha_last_version ): bool {
-	if ( null === $gatherpress_alpha_last_version ) {
-		return true;
-	}
-
-	$gatherpress_alpha_base     = preg_replace( '/-.*$/', '', $gatherpress_alpha_last_version );
-	$gatherpress_alpha_unstable = false !== strpos( $gatherpress_alpha_last_version, '-' );
-
-	if ( $gatherpress_alpha_unstable ) {
-		return version_compare( $gatherpress_alpha_fix_version, $gatherpress_alpha_base, '>=' );
-	}
-
-	return version_compare( $gatherpress_alpha_fix_version, $gatherpress_alpha_base, '>' );
-};
+// Setup answers this so the badges match the pending notice.
+$gatherpress_alpha_is_pending = array( GatherPress_Alpha\Setup::get_instance(), 'is_fix_pending' );
 
 /**
  * Renders the Applied/Pending badge for a version's fix.
