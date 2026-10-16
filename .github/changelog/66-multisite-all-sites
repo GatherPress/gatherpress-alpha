@@ -1,4 +1,0 @@
-Significance: patch
-Type: fixed
-
-Run compatibility updates on every site in a multisite network instead of stopping at the first 100, and report how many sites the WP-CLI command updated.

@@ -14,6 +14,17 @@ every GatherPress release has a matching GatherPress Alpha release that ships
 the migration code needed to bridge breaking changes between versions. This
 plugin is a temporary developer companion that goes away at GatherPress 1.0.0.
 
+## [0.36.0] - 2026-10-16
+### Added
+- Add the 0.36.0 migration for the settings and event meta that GatherPress renamed. It moves the thirteen renamed settings and the two renamed post meta keys to their current names, covers the network-level copies on multisite that a per-site pass cannot reach, and drops the literal "to" separator that Event Date blocks saved under the old default so those blocks go back to showing a translated separator. [#100]
+
+### Changed
+- Show a version's compatibility updates as Applied once they have run at the exact installed version, so the pending notice clears after Apply Updates on a pre-release and comes back when the next one is installed. [#100]
+
+### Fixed
+- Fix compatibility updates staying Pending after a run on sites where another plugin adds its own plugin headers, and reload the Alpha screen after Apply Updates so the badges reflect the finished run. [#100]
+- Run compatibility updates on every site in a multisite network instead of stopping at the first 100, and report how many sites the WP-CLI command updated. [#100]
+
 ## [0.35.4] - 2026-09-17
 ### Changed
 - Track the GatherPress 0.35.4 patch release, which the plugin is version-locked to. [#83]
@@ -136,6 +147,7 @@ Maintenance release tracking GatherPress 0.29.1.
 
 First public release of the GatherPress Alpha companion plugin. Provides a small migration runner that fixes legacy data when GatherPress ships breaking changes — designed to be activated alongside core GatherPress in lockstep with matching version numbers.
 
+[0.36.0]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.4...0.36.0
 [0.35.4]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.3...0.35.4
 [0.35.3]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.2...0.35.3
 [0.35.2]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.1...0.35.2
