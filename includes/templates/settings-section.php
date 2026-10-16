@@ -13,30 +13,14 @@ defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 $gatherpress_alpha_last_version = get_option( 'gatherpress_alpha_last_version', null );
 
-/**
- * Whether the fix for a given version is still pending on this site.
- *
- * Mirrors Setup::should_run_fix(): with no recorded run every fix is pending;
- * after an unstable run (e.g. 0.34.0-beta.1) fixes >= the base version are
- * pending; after a stable run only fixes > the base version are pending.
- *
- * @param string $gatherpress_alpha_fix_version The version of the fix to check.
- * @return bool True when the fix has not been applied yet.
- */
-$gatherpress_alpha_is_pending = static function ( string $gatherpress_alpha_fix_version ) use ( $gatherpress_alpha_last_version ): bool {
-	if ( null === $gatherpress_alpha_last_version ) {
-		return true;
-	}
+// Earlier builds could store an empty version when another plugin's headers hid
+// ours; every fix still counts as pending then, so say it has not run.
+if ( '' === $gatherpress_alpha_last_version ) {
+	$gatherpress_alpha_last_version = null;
+}
 
-	$gatherpress_alpha_base     = preg_replace( '/-.*$/', '', $gatherpress_alpha_last_version );
-	$gatherpress_alpha_unstable = false !== strpos( $gatherpress_alpha_last_version, '-' );
-
-	if ( $gatherpress_alpha_unstable ) {
-		return version_compare( $gatherpress_alpha_fix_version, $gatherpress_alpha_base, '>=' );
-	}
-
-	return version_compare( $gatherpress_alpha_fix_version, $gatherpress_alpha_base, '>' );
-};
+// Setup answers this so the badges match the pending notice.
+$gatherpress_alpha_is_pending = array( GatherPress_Alpha\Setup::get_instance(), 'is_fix_pending' );
 
 /**
  * Renders the Applied/Pending badge for a version's fix.
@@ -111,6 +95,30 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </p>
 
 <details class="gatherpress-alpha-version" open>
+	<summary><?php esc_html_e( 'Version 0.36.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Settings and Event Meta Renamed:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'Several settings and two event meta keys were renamed so their names say what they mean. Maximum Attendance Limit is now Capacity, Maximum Number of Guests is now Guest Limit, and the six Venue Map defaults drop the redundant word "default". This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename the thirteen renamed settings in place, keeping each value', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Rename the matching event meta: gatherpress_max_attendance_limit becomes gatherpress_capacity, and gatherpress_max_guest_limit becomes gatherpress_guest_limit', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Drop a stale row wherever the new name already holds a value, so no event is left with two', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'On multisite, rename the network\'s own copies of those settings and update the list of options subsites inherit, neither of which a per-site pass can reach', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave settings that were not renamed untouched, so it is safe to run more than once', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'GatherPress 0.36.0 still answers to the former names, so nothing breaks before this runs. That fallback is removed in 0.37.0, so this migration needs to have run before updating to it.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'Event Date Separator Reset:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The Event Date block used to save the English word "to" as its default separator, and GatherPress translated that value back when rendering. 0.36.0 stopped doing that, so a separator is now shown exactly as it was typed. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Remove the saved "to" separator from Event Date blocks in events, templates, and template parts, which puts them back on the translated default', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave a separator somebody chose, such as a different word or a dash, exactly as it is', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave every other Event Date setting untouched', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Blocks that keep the old value show the English "to" on a translated site until this runs.', 'gatherpress-alpha' ); ?></em></p>
+</details>
+
+<details class="gatherpress-alpha-version">
 	<summary><?php esc_html_e( 'Version 0.35.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Icon Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
@@ -305,6 +313,16 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 
 	const gatherPressAlphaButton = document.getElementById('gatherpress-alpha');
 
+	// Hide the spinner and wait for a paint, so it is gone before the alert blocks the page.
+	function gatherPressAlphaNotify(message) {
+		document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
+
+		return new Promise(resolve => requestAnimationFrame(() => setTimeout(() => {
+			alert(message);
+			resolve();
+		}, 0)));
+	}
+
 	document.getElementById('gatherpress-alpha').addEventListener('click', function(e) {
 		e.preventDefault();
 		gatherPressAlphaButton.disabled = true;
@@ -332,19 +350,18 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 			return response.json(); // Parse JSON from the response.
 		})
 		.then(response => {
-			// Handle the JSON response.
-			if (response.success) {
-				alert('<?php esc_html_e( 'Success!', 'gatherpress-alpha' ); ?>');
-				gatherPressAlphaButton.disabled = false;
-				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
-			} else {
-				alert('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
-				gatherPressAlphaButton.disabled = false;
-				document.getElementById('gatherpress-saving').classList.remove('gatherpress-is-saving');
+			if (!response.success) {
+				throw new Error('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 			}
+
+			// Reload so the badges reflect the run.
+			return gatherPressAlphaNotify('<?php esc_html_e( 'Success!', 'gatherpress-alpha' ); ?>')
+				.then(() => window.location.reload());
 		})
 		.catch(error => {
-			console.error(error); // Handle any errors.
+			console.error(error);
+			gatherPressAlphaButton.disabled = false;
+			gatherPressAlphaNotify('<?php esc_html_e( 'Something went wrong!', 'gatherpress-alpha' ); ?>');
 		});
 	});
 </script>

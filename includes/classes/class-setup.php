@@ -34,6 +34,33 @@ class Setup {
 	use Singleton;
 
 	/**
+	 * Every version that ships a compatibility fix, oldest first.
+	 *
+	 * Each entry has a matching `fix__<version with underscores>()` method.
+	 * Both `run_fixes()` and `is_fix_pending()` read this, so the banner and
+	 * the Pending badges cover the same versions a run does.
+	 *
+	 * @var string[]
+	 */
+	const FIX_VERSIONS = array(
+		'0.29.0',
+		'0.30.0',
+		'0.31.0',
+		'0.32.0',
+		'0.33.0',
+		'0.34.0',
+		'0.35.0',
+		'0.36.0',
+	);
+
+	/**
+	 * Whether the network-level settings pass has already run this request.
+	 *
+	 * @var bool
+	 */
+	private bool $migrated_network_settings = false;
+
+	/**
 	 * Constructor for the Setup class.
 	 *
 	 * Initializes and sets up various components of the plugin.
@@ -77,15 +104,35 @@ class Setup {
 	/**
 	 * Whether compatibility updates are still pending on this site.
 	 *
-	 * `run_fixes()` records GATHERPRESS_ALPHA_VERSION once it completes, so a
-	 * stored value that differs from the running version means the updates for
-	 * this version have not been applied. A site that has never run them stores
-	 * nothing at all.
-	 *
-	 * @return bool True when updates have not been applied for the running version.
+	 * @return bool True when any version's fix is pending.
 	 */
 	public function has_pending_fixes(): bool {
-		return GATHERPRESS_ALPHA_VERSION !== $this->get_last_run_version();
+		foreach ( self::FIX_VERSIONS as $fix_version ) {
+			if ( $this->is_fix_pending( $fix_version ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Whether the fix for a given version is still pending on this site.
+	 *
+	 * A run at exactly the running version counts as applied, so the notice
+	 * and badges clear after a run on a pre-release and come back when the
+	 * next one is installed. A run still repeats the fix for its own version
+	 * on a pre-release (see `should_run_fix()`); this only decides what the
+	 * screen shows.
+	 *
+	 * @param string $fix_version The version of the fix to check (e.g., "0.36.0").
+	 * @return bool True when the fix is pending.
+	 */
+	public function is_fix_pending( string $fix_version ): bool {
+		$last_version = $this->get_last_run_version();
+
+		return GATHERPRESS_ALPHA_VERSION !== $last_version
+			&& $this->should_run_fix( $fix_version, $last_version );
 	}
 
 	/**
@@ -388,27 +435,41 @@ class Setup {
 	 *
 	 * Only runs fixes for versions newer than the last recorded version.
 	 *
-	 * @return void
+	 * @return int Number of sites the fixes ran on.
 	 */
-	public function fix(): void {
-		// Check if running via WP CLI
-		$is_cli = defined( 'WP_CLI' ) && WP_CLI;
+	public function fix(): int {
+		// Check if running via WP CLI.
+		$is_cli     = defined( 'WP_CLI' ) && WP_CLI;
+		$site_count = 0;
 
 		if ( is_multisite() && ( $is_cli || current_user_can( 'manage_network' ) ) ) {
-			$sites = get_sites();
+			// `number => 0` is required so WP doesn't silently cap the loop at 100 sites.
+			$site_ids = get_sites(
+				array(
+					'fields'     => 'ids',
+					'number'     => 0,
+					'network_id' => get_current_site()->id,
+				)
+			);
 
-			foreach ( $sites as $site ) {
-				switch_to_blog( $site->blog_id );
+			foreach ( $site_ids as $site_id ) {
+				switch_to_blog( (int) $site_id );
 
 				$this->run_fixes();
 
 				restore_current_blog();
 			}
+
+			$site_count = count( $site_ids );
 		} elseif ( $is_cli || current_user_can( 'manage_options' ) ) {
 			$this->run_fixes();
+
+			$site_count = 1;
 		} else {
-			wp_die( __( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
 		}
+
+		return $site_count;
 	}
 
 	/**
@@ -419,36 +480,281 @@ class Setup {
 	private function run_fixes(): void {
 		$last_version = $this->get_last_run_version();
 
-		if ( $this->should_run_fix( '0.29.0', $last_version ) ) {
-			$this->fix__0_29_0();
-		}
+		foreach ( self::FIX_VERSIONS as $fix_version ) {
+			if ( ! $this->should_run_fix( $fix_version, $last_version ) ) {
+				continue;
+			}
 
-		if ( $this->should_run_fix( '0.30.0', $last_version ) ) {
-			$this->fix__0_30_0();
-		}
+			// '0.36.0' resolves to fix__0_36_0(), the naming every fix uses.
+			$method = sprintf( 'fix__%s', str_replace( '.', '_', $fix_version ) );
 
-		if ( $this->should_run_fix( '0.31.0', $last_version ) ) {
-			$this->fix__0_31_0();
-		}
-
-		if ( $this->should_run_fix( '0.32.0', $last_version ) ) {
-			$this->fix__0_32_0();
-		}
-
-		if ( $this->should_run_fix( '0.33.0', $last_version ) ) {
-			$this->fix__0_33_0();
-		}
-
-		if ( $this->should_run_fix( '0.34.0', $last_version ) ) {
-			$this->fix__0_34_0();
-		}
-
-		if ( $this->should_run_fix( '0.35.0', $last_version ) ) {
-			$this->fix__0_35_0();
+			$this->$method();
 		}
 
 		// Update the stored version to current plugin version.
 		$this->set_last_run_version( GATHERPRESS_ALPHA_VERSION );
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.36.0 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_36_0(): void {
+		$this->migrate_renamed_settings();
+		$this->migrate_renamed_post_meta();
+		$this->migrate_renamed_network_settings();
+		$this->migrate_event_date_separator();
+	}
+
+	/**
+	 * Settings renamed in 0.36.0, mapped former name to current name.
+	 *
+	 * @return array<string, string> Former name => current name.
+	 */
+	private function get_renamed_settings(): array {
+		return array(
+			'max_attendance_limit'           => 'capacity',
+			'max_guest_limit'                => 'guest_limit',
+			'rsvp_cleanup_switch'            => 'enable_rsvp_cleanup',
+			'rsvp_cleanup_interval'          => 'rsvp_cleanup_multiplier',
+			'post_or_event_date'             => 'use_event_date_for_publish',
+			'map_tile_url_custom'            => 'custom_map_tile_url',
+			'map_tile_attribution_custom'    => 'custom_map_tile_attribution',
+			'venue_map_default_type'         => 'venue_map_type',
+			'venue_map_default_render_mode'  => 'venue_map_render_mode',
+			'venue_map_default_zoom'         => 'venue_map_zoom',
+			'venue_map_default_height'       => 'venue_map_height',
+			'venue_map_default_aspect_ratio' => 'venue_map_aspect_ratio',
+			'venue_map_default_scale'        => 'venue_map_scale',
+		);
+	}
+
+	/**
+	 * Renames the settings that changed name in 0.36.0.
+	 *
+	 * Core reads the former name as a fallback, so this is what lets that
+	 * fallback be removed in 0.37.0. A key already carrying its current name
+	 * is left alone, which keeps the pass idempotent.
+	 *
+	 * @return void
+	 */
+	private function migrate_renamed_settings(): void {
+		$settings = get_option( Settings::OPTION_NAME, array() );
+
+		if ( ! is_array( $settings ) ) {
+			return;
+		}
+
+		$changed = false;
+
+		foreach ( $this->get_renamed_settings() as $former => $current ) {
+			if ( ! array_key_exists( $former, $settings ) ) {
+				continue;
+			}
+
+			// A value already written under the current name wins; the stale
+			// one is just dropped.
+			if ( ! array_key_exists( $current, $settings ) ) {
+				$settings[ $current ] = $settings[ $former ];
+			}
+
+			unset( $settings[ $former ] );
+			$changed = true;
+		}
+
+		if ( $changed ) {
+			update_option( Settings::OPTION_NAME, $settings );
+		}
+	}
+
+	/**
+	 * Renames the event post meta keys that changed name in 0.36.0.
+	 *
+	 * Rows already carrying the current name are left in place, and a former
+	 * row is dropped rather than overwriting one.
+	 *
+	 * @return void
+	 */
+	private function migrate_renamed_post_meta(): void {
+		global $wpdb;
+
+		$meta_keys = array(
+			'gatherpress_max_attendance_limit' => 'gatherpress_capacity',
+			'gatherpress_max_guest_limit'      => 'gatherpress_guest_limit',
+		);
+
+		foreach ( $meta_keys as $former => $current ) {
+			// Drop a former row wherever the current name already answers, so
+			// the rename below cannot produce two rows for one post.
+			$wpdb->query(
+				$wpdb->prepare(
+					"DELETE former FROM {$wpdb->postmeta} AS former
+					INNER JOIN {$wpdb->postmeta} AS active
+						ON active.post_id = former.post_id AND active.meta_key = %s
+					WHERE former.meta_key = %s",
+					$current,
+					$former
+				)
+			);
+
+			$wpdb->query(
+				$wpdb->prepare(
+					'UPDATE %i SET meta_key = %s WHERE meta_key = %s',
+					$wpdb->postmeta,
+					$current,
+					$former
+				)
+			);
+		}
+	}
+
+	/**
+	 * Renames the network-level copies of the settings that changed in 0.36.0.
+	 *
+	 * Two things live in site meta rather than in a site's own options, so
+	 * `switch_to_blog()` does not reach them and the per-site loop in `fix()`
+	 * would miss both: the network's own settings values, and the list naming
+	 * which options subsites inherit. A stale entry in that list means a
+	 * renamed option quietly stops being inherited network-wide.
+	 *
+	 * Runs once per request rather than once per site, and is idempotent
+	 * either way.
+	 *
+	 * @return void
+	 */
+	private function migrate_renamed_network_settings(): void {
+		if ( ! is_multisite() || $this->migrated_network_settings ) {
+			return;
+		}
+
+		$this->migrated_network_settings = true;
+
+		$renamed = $this->get_renamed_settings();
+		$values  = get_site_option( Settings::OPTION_NAME, array() );
+
+		if ( is_array( $values ) ) {
+			$changed = false;
+
+			foreach ( $renamed as $former => $current ) {
+				if ( ! array_key_exists( $former, $values ) ) {
+					continue;
+				}
+
+				if ( ! array_key_exists( $current, $values ) ) {
+					$values[ $current ] = $values[ $former ];
+				}
+
+				unset( $values[ $former ] );
+				$changed = true;
+			}
+
+			if ( $changed ) {
+				update_site_option( Settings::OPTION_NAME, $values );
+			}
+		}
+
+		$config = get_site_option( 'gatherpress_network_settings', array() );
+
+		if ( ! is_array( $config ) || ! is_array( $config['inherited'] ?? null ) ) {
+			return;
+		}
+
+		$inherited = array();
+
+		foreach ( $config['inherited'] as $option ) {
+			$inherited[] = $renamed[ $option ] ?? $option;
+		}
+
+		$inherited = array_values( array_unique( $inherited ) );
+
+		if ( $inherited !== $config['inherited'] ) {
+			$config['inherited'] = $inherited;
+
+			update_site_option( 'gatherpress_network_settings', $config );
+		}
+	}
+
+	/**
+	 * Drops the literal "to" separator saved on Event Date blocks.
+	 *
+	 * The block used to default `separator` to the English string "to", and
+	 * both the renderer and the editor special-cased that value back into a
+	 * translated one. 0.36.0 dropped the special case: the default is empty
+	 * now, and "to" is an ordinary custom separator that gets shown as typed.
+	 *
+	 * That leaves blocks saved under the old default stuck on English. Removing
+	 * the attribute puts them back on the empty default, which is what gets
+	 * translated. A separator anybody actually chose is left alone, because
+	 * only the exact former default is removed.
+	 *
+	 * Scoped to events, templates and template parts, which is everywhere the
+	 * block is placed.
+	 *
+	 * @return void
+	 */
+	private function migrate_event_date_separator(): void {
+		global $wpdb;
+
+		$post_types = array( Event::POST_TYPE, 'wp_template', 'wp_template_part' );
+		$placeholders = implode( ', ', array_fill( 0, count( $post_types ), '%s' ) );
+
+		$posts = $wpdb->get_results(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT ID, post_content FROM {$wpdb->posts}
+				WHERE post_type IN ( {$placeholders} )
+				AND post_content LIKE %s",
+				array_merge( $post_types, array( '%' . $wpdb->esc_like( 'gatherpress/event-date' ) . '%' ) )
+			)
+		);
+
+		foreach ( $posts as $post ) {
+			$updated = false;
+			$blocks  = $this->drop_event_date_separator( parse_blocks( $post->post_content ), $updated );
+
+			if ( ! $updated ) {
+				continue;
+			}
+
+			$wpdb->update(
+				$wpdb->posts,
+				array( 'post_content' => serialize_blocks( $blocks ) ),
+				array( 'ID' => $post->ID ),
+				array( '%s' ),
+				array( '%d' )
+			);
+		}
+	}
+
+	/**
+	 * Walks parsed blocks removing the former default separator.
+	 *
+	 * @param array $blocks  Parsed blocks.
+	 * @param bool  $updated Set to true when anything was removed.
+	 *
+	 * @return array The blocks, with the attribute dropped where it applied.
+	 */
+	private function drop_event_date_separator( array $blocks, bool &$updated ): array {
+		foreach ( $blocks as $index => $block ) {
+			if (
+				'gatherpress/event-date' === ( $block['blockName'] ?? '' )
+				&& 'to' === ( $block['attrs']['separator'] ?? null )
+			) {
+				unset( $blocks[ $index ]['attrs']['separator'] );
+
+				$updated = true;
+			}
+
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$blocks[ $index ]['innerBlocks'] = $this->drop_event_date_separator(
+					$block['innerBlocks'],
+					$updated
+				);
+			}
+		}
+
+		return $blocks;
 	}
 
 	/**

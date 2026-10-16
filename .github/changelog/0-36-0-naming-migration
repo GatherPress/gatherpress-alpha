@@ -1,0 +1,4 @@
+Significance: minor
+Type: added
+
+Add the 0.36.0 migration for the settings and event meta that GatherPress renamed. It moves the thirteen renamed settings and the two renamed post meta keys to their current names, covers the network-level copies on multisite that a per-site pass cannot reach, and drops the literal "to" separator that Event Date blocks saved under the old default so those blocks go back to showing a translated separator.

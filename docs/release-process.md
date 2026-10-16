@@ -11,16 +11,34 @@ release has a matching Alpha release with the same version number. The Alpha
 plugin carries the migration code needed to bridge breaking changes between
 versions and goes away at GatherPress 1.0.0.
 
+## Branch model
+
+Alpha mirrors core's two long-lived branches, because the two repos version
+in lockstep and the plugin refuses to run on a mismatch:
+
+| Branch    | Holds                                    | Pairs with          |
+| --------- | ---------------------------------------- | ------------------- |
+| `develop` | the in-flight version, pre-release tags  | core's `develop`    |
+| `main`    | the released version, stable tags        | core's `main`       |
+
+Feature and fix PRs target `develop` and are squash-merged. `main` only ever
+receives the develop→main release merge (with a merge commit, never squashed)
+and patch `version-X.Y.N` branches cut from it.
+
+Between a release and the next cycle's first alpha, `develop` carries core's
+`X.Y+1.0-alpha.0` cycle marker. That version is never tagged — `release.yml`
+refuses it — so nothing reaches the Releases tab under it.
+
 ## What gets automated
 
-Pushing a tag of the form `X.Y.Z` (stable) or `X.Y.Z-alpha.N` / `-beta.N` /
-`-rc.N` (pre-release) triggers `release.yml`. The workflow:
+Pushing a tag of the form `X.Y.Z` (stable) or `X.Y.Z-alpha.N` / `-beta.N`
+(pre-release) triggers `release.yml`. The workflow:
 
 | Tag pattern             | Distro zip                            | GitHub Release entry | Changelog body source                                                          |
 | ----------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------------------------ |
 | `0.34.0`                | `gatherpress-alpha.0.34.0.zip`        | Release (latest)     | Rolled-up `[0.34.0]` section, committed back to `CHANGELOG.md` via auto-PR     |
 | `0.34.0-alpha.1`        | `gatherpress-alpha.0.34.0-alpha.1.zip`| Pre-Release          | Rolled-up `[0.34.0-alpha.1]` section computed in an ephemeral checkout (no commit) |
-| `0.34.0-beta.1` / `-rc.1` | Same shape as alpha                 | Pre-Release          | Same shape as alpha                                                            |
+| `0.34.0-beta.1`         | Same shape as alpha                   | Pre-Release          | Same shape as alpha                                                            |
 
 GatherPress Alpha does **not** deploy to wordpress.org. It is distributed only
 via GitHub releases. The distro zip's outer filename carries the version; the
@@ -38,7 +56,7 @@ gh workflow run version-bump.yml --repo GatherPress/gatherpress-alpha -f version
 ```
 
 It rewrites the `Version:` header in `gatherpress-alpha.php` and opens a
-`version-X.Y.Z` PR against `main` with a GitHub-signed commit. Review and
+`version-X.Y.Z` PR against `develop` with a GitHub-signed commit. Review and
 merge it alongside the core version PR. When the core repo has a
 `GATHERPRESS_ALPHA_TOKEN` secret configured, core's own Version Bump workflow
 dispatches this one automatically.
@@ -51,8 +69,11 @@ dispatches this one automatically.
 gh workflow run release.yml --repo GatherPress/gatherpress-alpha -f version=0.35.0
 ```
 
-It refuses to run unless the version matches the `Version:` header on `main`
-(i.e. the version PR has merged), then creates the tag itself at `main` HEAD
+It refuses to run unless the version matches the `Version:` header on the
+branch that version lives on (`develop` for a pre-release, `main` for a
+stable)
+(i.e. the version PR has merged), then creates the tag itself at that
+branch's HEAD
 and proceeds exactly like a tag push. This is the hook core's Release
 workflow uses to cut the lockstep Alpha release automatically when a
 cross-repo token is configured; without one, the command above is printed in
@@ -67,15 +88,15 @@ GatherPress core to be able to download the corresponding Alpha build.
 **Cut it:**
 
 ```bash
-git checkout main
-git pull origin main
+git checkout develop
+git pull origin develop
 git tag 0.34.0-alpha.1
 git push origin 0.34.0-alpha.1
 ```
 
 **What the workflow does:**
 
-1. Detects the tag is a pre-release (the `-alpha.` / `-beta.` / `-rc.` suffix).
+1. Detects the tag is a pre-release (the `-alpha.` / `-beta.` suffix).
 2. Builds `gatherpress-alpha.0.34.0-alpha.1.zip` via `npm run plugin-zip`.
 3. Runs `composer changelog:write --use-version=0.34.0-alpha.1 ...` in an ephemeral working copy and extracts the resulting `[0.34.0-alpha.1]` section as the release body. The changes never get committed anywhere — they evaporate when the job ends.
 4. Creates a GitHub **Pre-Release** with the zip attached and the rolled-up body. The Pre-Release is **not** marked as the latest release.
@@ -105,12 +126,12 @@ git push origin 0.34.0
 
 **What the workflow does:**
 
-1. Detects the tag is stable (no `-alpha.` / `-beta.` / `-rc.` suffix).
+1. Detects the tag is stable (no `-alpha.` / `-beta.` suffix).
 2. Runs `composer changelog:write --use-version=0.34.0 --release-date=<today> --add-pr-num --deduplicate=-1 --yes`. This:
     - Aggregates every file in `.github/changelog/` into a new `## [0.34.0] - YYYY-MM-DD` section at the top of `CHANGELOG.md`.
     - Appends `[#NNNN]` to each entry from the originating PR's merge commit subject.
     - **Deletes** the entry files so the next cycle starts clean.
-3. Commits the rolled-up `CHANGELOG.md` + the deleted entry files to a new `release/0.34.0` branch and **opens an auto-PR back to `main`** for the release manager to merge after the release ships. The auto-PR carries the `Skip Changelog` label so the changelog gate doesn't block it.
+3. Commits the rolled-up `CHANGELOG.md` + the deleted entry files to a new `release/0.34.0` branch and **opens an auto-PR back to `develop`** for the release manager to merge after the release ships. The auto-PR carries the `Skip Changelog` label so the changelog gate doesn't block it.
 4. Builds `gatherpress-alpha.0.34.0.zip`.
 5. Extracts the newly-written `[0.34.0]` section from `CHANGELOG.md` as the release body.
 6. Creates a GitHub **Release** with the zip attached, marked as **latest**.
@@ -119,7 +140,7 @@ git push origin 0.34.0
 
 - [GitHub Releases page](https://github.com/GatherPress/gatherpress-alpha/releases) shows the new tag as "Latest release".
 - The release body matches the `[0.34.0]` section that just landed in `CHANGELOG.md` on the `release/0.34.0` branch.
-- The auto-PR titled "Roll up changelog for 0.34.0" is open against `main`. **Merge this once you've confirmed the release body renders correctly** — that returns the rolled-up `CHANGELOG.md` and the cleaned `.github/changelog/` to the long-lived branch.
+- The auto-PR titled "Roll up changelog for 0.34.0" is open against `develop`. **Merge this once you've confirmed the release body renders correctly** — that returns the rolled-up `CHANGELOG.md` and the cleaned `.github/changelog/` to the long-lived branch.
 
 ## Troubleshooting
 
@@ -144,7 +165,7 @@ rollup commit but no PR opened, open it manually:
 
 ```bash
 gh pr create \
-  --base main \
+  --base develop \
   --head release/0.34.0 \
   --title "Roll up changelog for 0.34.0" \
   --body "Automated rollup of .github/changelog/* entries." \
@@ -172,7 +193,6 @@ auto-PR.
 - **Stable**: `0.34.0`, `0.35.0`, `1.0.0`. Three numeric components, no suffix.
 - **Alpha**: `0.34.0-alpha.1`, `0.34.0-alpha.2`. Use for early in-cycle builds.
 - **Beta**: `0.34.0-beta.1`. Use for feature-complete in-cycle builds.
-- **Release candidate**: `0.34.0-rc.1`. Use for "we believe this is shippable."
 
 The version must always match the GatherPress core version that Alpha is
 bridging from. Alpha's coexistence guard refuses to boot if

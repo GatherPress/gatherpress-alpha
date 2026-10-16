@@ -1,0 +1,4 @@
+Significance: patch
+Type: changed
+
+Show a version's compatibility updates as Applied once they have run at the exact installed version, so the pending notice clears after Apply Updates on a pre-release and comes back when the next one is installed.

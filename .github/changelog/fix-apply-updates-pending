@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+Fix compatibility updates staying Pending after a run on sites where another plugin adds its own plugin headers, and reload the Alpha screen after Apply Updates so the badges reflect the finished run.
