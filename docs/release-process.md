@@ -127,9 +127,9 @@ git push origin 0.34.0
 **What the workflow does:**
 
 1. Detects the tag is stable (no `-alpha.` / `-beta.` suffix).
-2. Runs `composer changelog:write --use-version=0.34.0 --release-date=<today> --add-pr-num --deduplicate=-1 --yes`. This:
+2. Runs `.github/scripts/add-changelog-pr-nums.php`, then `changelogger write --use-version=0.34.0 --release-date=<today> --deduplicate=-1 --yes`. This:
+    - Appends `[#NNNN]` to each entry, taken from the subject of the commit that added its entry file. Changelogger's own `--add-pr-num` follows `main`'s first-parent history, which on a stable release credits every entry to the release merge.
     - Aggregates every file in `.github/changelog/` into a new `## [0.34.0] - YYYY-MM-DD` section at the top of `CHANGELOG.md`.
-    - Appends `[#NNNN]` to each entry from the originating PR's merge commit subject.
     - **Deletes** the entry files so the next cycle starts clean.
 3. Commits the rolled-up `CHANGELOG.md` + the deleted entry files to a new `release/0.34.0` branch and **opens an auto-PR back to `develop`** for the release manager to merge after the release ships. The auto-PR carries the `Skip Changelog` label so the changelog gate doesn't block it.
 4. Builds `gatherpress-alpha.0.34.0.zip`.

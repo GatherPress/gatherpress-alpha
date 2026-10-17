@@ -16,7 +16,8 @@
 		],
 		"changelog:write": [
 			"composer install",
-			"vendor/bin/changelogger write --add-pr-num"
+			"php .github/scripts/add-changelog-pr-nums.php",
+			"vendor/bin/changelogger write"
 		]
 	},
 	"extra": {

@@ -157,13 +157,16 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
+          # Stamp each entry with the PR that added it, in place of
+          # changelogger's --add-pr-num (see the script's docblock).
+          php .github/scripts/add-changelog-pr-nums.php
+
           # On pre-releases this modifies the ephemeral working dir; the
           # changes never get pushed because the commit step below is gated
           # on the stable path.
           vendor/bin/changelogger write \
             --use-version="${VERSION}" \
             --release-date="$(date +%Y-%m-%d)" \
-            --add-pr-num \
             --deduplicate=-1 \
             --yes
 
