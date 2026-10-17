@@ -16,14 +16,14 @@ plugin is a temporary developer companion that goes away at GatherPress 1.0.0.
 
 ## [0.36.0] - 2026-10-16
 ### Added
-- Add the 0.36.0 migration for the settings and event meta that GatherPress renamed. It moves the thirteen renamed settings and the two renamed post meta keys to their current names, covers the network-level copies on multisite that a per-site pass cannot reach, and drops the literal "to" separator that Event Date blocks saved under the old default so those blocks go back to showing a translated separator. [#100]
+- Add the 0.36.0 migration for the settings and event meta that GatherPress renamed. It moves the thirteen renamed settings and the two renamed post meta keys to their current names, covers the network-level copies on multisite that a per-site pass cannot reach, and drops the literal "to" separator that Event Date blocks saved under the old default so those blocks go back to showing a translated separator. [#85]
 
 ### Changed
-- Show a version's compatibility updates as Applied once they have run at the exact installed version, so the pending notice clears after Apply Updates on a pre-release and comes back when the next one is installed. [#100]
+- Show a version's compatibility updates as Applied once they have run at the exact installed version, so the pending notice clears after Apply Updates on a pre-release and comes back when the next one is installed. [#95]
 
 ### Fixed
-- Fix compatibility updates staying Pending after a run on sites where another plugin adds its own plugin headers, and reload the Alpha screen after Apply Updates so the badges reflect the finished run. [#100]
-- Run compatibility updates on every site in a multisite network instead of stopping at the first 100, and report how many sites the WP-CLI command updated. [#100]
+- Fix compatibility updates staying Pending after a run on sites where another plugin adds its own plugin headers, and reload the Alpha screen after Apply Updates so the badges reflect the finished run. [#93]
+- Run compatibility updates on every site in a multisite network instead of stopping at the first 100, and report how many sites the WP-CLI command updated. [#96]
 
 ## [0.35.4] - 2026-09-17
 ### Changed
