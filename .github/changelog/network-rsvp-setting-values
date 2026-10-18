@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+Add the 0.37.0 migration for the network-level copies of the RSVP settings on multisite. The 0.35.0 pass only normalized each site's own RSVP Mode and cleanup values, so a network that kept them still held the pre-0.35.0 values, which turned RSVP on for every event on subsites inheriting them and kept RSVP cleanup from being scheduled.
