@@ -51,6 +51,7 @@ class Setup {
 		'0.34.0',
 		'0.35.0',
 		'0.36.0',
+		'0.37.0',
 	);
 
 	/**
@@ -59,6 +60,13 @@ class Setup {
 	 * @var bool
 	 */
 	private bool $migrated_network_settings = false;
+
+	/**
+	 * Whether the network-level RSVP settings values pass has already run this request.
+	 *
+	 * @var bool
+	 */
+	private bool $migrated_network_rsvp_setting_values = false;
 
 	/**
 	 * Constructor for the Setup class.
@@ -493,6 +501,60 @@ class Setup {
 
 		// Update the stored version to current plugin version.
 		$this->set_last_run_version( GATHERPRESS_ALPHA_VERSION );
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.37.0 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_37_0(): void {
+		$this->migrate_network_rsvp_setting_values();
+	}
+
+	/**
+	 * Normalizes the network-level copies of the RSVP settings values.
+	 *
+	 * The 0.35.0 pass only rewrote each site's own option, so a network that
+	 * kept RSVP Mode or the cleanup toggle in its settings still holds the
+	 * pre-0.35.0 values in site meta, where `switch_to_blog()` does not reach.
+	 * The 0.36.0 network pass then renamed `rsvp_cleanup_switch` without
+	 * touching its value, which runs first, so each map is applied under the
+	 * setting's current name.
+	 *
+	 * Runs once per request rather than once per site, and is idempotent
+	 * either way.
+	 *
+	 * @return void
+	 */
+	private function migrate_network_rsvp_setting_values(): void {
+		if ( ! is_multisite() || $this->migrated_network_rsvp_setting_values ) {
+			return;
+		}
+
+		$this->migrated_network_rsvp_setting_values = true;
+
+		$values = get_site_option( Settings::OPTION_NAME, array() );
+
+		if ( ! is_array( $values ) ) {
+			return;
+		}
+
+		$renamed = $this->get_renamed_settings();
+		$changed = false;
+
+		foreach ( $this->get_rsvp_setting_value_maps() as $key => $map ) {
+			$name = $renamed[ $key ] ?? $key;
+
+			if ( isset( $values[ $name ] ) && isset( $map[ $values[ $name ] ] ) ) {
+				$values[ $name ] = $map[ $values[ $name ] ];
+				$changed         = true;
+			}
+		}
+
+		if ( $changed ) {
+			update_site_option( Settings::OPTION_NAME, $values );
+		}
 	}
 
 	/**
@@ -2341,7 +2403,27 @@ class Setup {
 			return;
 		}
 
-		$value_maps = array(
+		$changed = false;
+
+		foreach ( $this->get_rsvp_setting_value_maps() as $key => $map ) {
+			if ( isset( $settings[ $key ] ) && isset( $map[ $settings[ $key ] ] ) ) {
+				$settings[ $key ] = $map[ $settings[ $key ] ];
+				$changed          = true;
+			}
+		}
+
+		if ( $changed ) {
+			update_option( Settings::OPTION_NAME, $settings );
+		}
+	}
+
+	/**
+	 * RSVP settings values renamed in 0.35.0, keyed by the setting's 0.35.0 name.
+	 *
+	 * @return array<string, array<string, string>> Setting => former value => current value.
+	 */
+	private function get_rsvp_setting_value_maps(): array {
+		return array(
 			'rsvp_mode'           => array(
 				'all_on'        => 'enabled',
 				'per_event_on'  => 'per_event_enabled',
@@ -2352,19 +2434,6 @@ class Setup {
 				'on'  => 'enabled',
 			),
 		);
-
-		$changed = false;
-
-		foreach ( $value_maps as $key => $map ) {
-			if ( isset( $settings[ $key ] ) && isset( $map[ $settings[ $key ] ] ) ) {
-				$settings[ $key ] = $map[ $settings[ $key ] ];
-				$changed          = true;
-			}
-		}
-
-		if ( $changed ) {
-			update_option( Settings::OPTION_NAME, $settings );
-		}
 	}
 
 	/**
