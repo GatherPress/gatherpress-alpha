@@ -11,16 +11,21 @@ namespace GatherPress_Alpha;
 defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 use GatherPress\Core\Event;
+use GatherPress\Core\Geo_Sync;
 use GatherPress\Core\Rsvp;
 use GatherPress\Core\Rsvp_Query;
 use GatherPress\Core\Traits\Singleton;
 use GatherPress\Core\Settings;
+use GatherPress\Core\Shadow_Source;
 use GatherPress\Core\Utility;
 use GatherPress_Alpha\Commands\Cli;
 use WP_CLI;
+use WP_Post;
 use WP_Query;
+use WP_Term;
 use GatherPress\Core\Topic;
 use GatherPress\Core\Venue;
+use GatherPress\Core\Venue\Setup as Venue_Setup;
 
 /**
  * Class Setup.
@@ -51,6 +56,7 @@ class Setup {
 		'0.34.0',
 		'0.35.0',
 		'0.36.0',
+		'0.36.1',
 		'0.37.0',
 	);
 
@@ -554,6 +560,107 @@ class Setup {
 
 		if ( $changed ) {
 			update_site_option( Settings::OPTION_NAME, $values );
+		}
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.36.1 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_36_1(): void {
+		$this->rename_prefixed_shadow_terms();
+		$this->clear_protected_venue_locations();
+	}
+
+	/**
+	 * Renames shadow terms named with a "Protected: " or "Private: " prefix.
+	 *
+	 * Before 0.36.1, a venue (or other shadow source) saved outside the admin,
+	 * such as from the block editor, named its term with get_the_title(),
+	 * which prefixes a password-protected or private post's title. 0.36.1
+	 * names the term from the title alone. A term is only renamed when its
+	 * name ends with that title, so one renamed by hand is left alone.
+	 *
+	 * @return void
+	 */
+	private function rename_prefixed_shadow_terms(): void {
+		$shadow_source = Shadow_Source::get_instance();
+
+		foreach ( get_post_types_by_support( Shadow_Source::SUPPORT ) as $post_type ) {
+			$taxonomy = $shadow_source->get_taxonomy( $post_type );
+			$posts    = get_posts(
+				array(
+					'post_type'   => $post_type,
+					'post_status' => array( 'publish', 'private' ),
+					'numberposts' => -1,
+				)
+			);
+
+			foreach ( $posts as $post ) {
+				if ( '' === $post->post_password && 'private' !== $post->post_status ) {
+					continue;
+				}
+
+				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter, as GatherPress applies it.
+				$name = html_entity_decode( (string) apply_filters( 'the_title', $post->post_title, $post->ID ) );
+				$term = get_term_by( 'slug', $shadow_source->term_slug_from_post_name( $post->post_name ), $taxonomy );
+
+				if ( $term instanceof WP_Term && $term->name !== $name && str_ends_with( $term->name, $name ) ) {
+					wp_update_term( $term->term_id, $taxonomy, array( 'name' => $name ) );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Clears the location events copied from a password-protected venue.
+	 *
+	 * Before 0.36.1, the event location fields (`geo_*`) took a protected
+	 * venue's address and coordinates, and they go out in the REST API.
+	 * 0.36.1 no longer copies them. This clears the copies already saved,
+	 * past events included, which GatherPress no longer refreshes, and marks
+	 * the venue's own copy not public.
+	 *
+	 * @return void
+	 */
+	private function clear_protected_venue_locations(): void {
+		$venue_setup = Venue_Setup::get_instance();
+
+		foreach ( array_unique( $venue_setup->get_venue_post_type_map() ) as $venue_post_type ) {
+			$taxonomy = $venue_setup->get_taxonomy( $venue_post_type );
+			$venues   = get_posts(
+				array(
+					'post_type'    => $venue_post_type,
+					'post_status'  => 'any',
+					'has_password' => true,
+					'numberposts'  => -1,
+				)
+			);
+
+			foreach ( $venues as $venue ) {
+				Geo_Sync::write( $venue->ID, Geo_Sync::build_values( ( new Venue( $venue->ID ) )->get_information(), false ) );
+
+				$term = get_term_by( 'slug', $venue_setup->term_slug_from_post_name( $venue->post_name ), $taxonomy );
+
+				if ( ! $term instanceof WP_Term ) {
+					continue;
+				}
+
+				$event_ids = get_objects_in_term( $term->term_id, $taxonomy );
+
+				foreach ( is_array( $event_ids ) ? $event_ids : array() as $event_id ) {
+					$event = get_post( (int) $event_id );
+
+					Geo_Sync::write(
+						(int) $event_id,
+						Geo_Sync::build_values(
+							array(),
+							$event instanceof WP_Post && 'publish' === $event->post_status && '' === $event->post_password
+						)
+					);
+				}
+			}
 		}
 	}
 
