@@ -1,4 +1,0 @@
-Significance: patch
-Type: fixed
-
-Add the 0.36.1 migration for password-protected venues: rename venue terms saved with a "Protected: " or "Private: " prefix, clear the location copied from a protected venue onto its events, past events included, and mark the venue's own location not public.

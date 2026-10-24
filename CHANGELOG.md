@@ -14,6 +14,16 @@ every GatherPress release has a matching GatherPress Alpha release that ships
 the migration code needed to bridge breaking changes between versions. This
 plugin is a temporary developer companion that goes away at GatherPress 1.0.0.
 
+## [0.36.1] - 2026-10-24
+### Changed
+- The Alpha screen names each breaking-changes section by its exact version, such as "Version 0.36.0 Breaking Changes", since 0.36.1 now has a section of its own. [#113]
+
+### Fixed
+- Add the 0.36.1 migration for password-protected venues: rename venue terms saved with a "Protected: " or "Private: " prefix, clear the location copied from a protected venue onto its events, past events included, and mark the venue's own location not public. [#108]
+- Add the 0.36.1 migration for the network-level copies of the RSVP settings on multisite. The 0.35.0 pass only normalized each site's own RSVP Mode and cleanup values, so a network that kept them still held the pre-0.35.0 values, which turned RSVP on for every event on subsites inheriting them and kept RSVP cleanup from being scheduled. [#107]
+- The 0.36.1 migration also marks the location of password-protected events as not public, past events included, keeping the location itself. [#112]
+- The 0.36.1 migration keeps the event locations it clears from a password-protected venue, so GatherPress 0.36.1 can give them back if the venue's password is removed. [#110]
+
 ## [0.36.0] - 2026-10-16
 ### Added
 - Add the 0.36.0 migration for the settings and event meta that GatherPress renamed. It moves the thirteen renamed settings and the two renamed post meta keys to their current names, covers the network-level copies on multisite that a per-site pass cannot reach, and drops the literal "to" separator that Event Date blocks saved under the old default so those blocks go back to showing a translated separator. [#85]
@@ -147,6 +157,7 @@ Maintenance release tracking GatherPress 0.29.1.
 
 First public release of the GatherPress Alpha companion plugin. Provides a small migration runner that fixes legacy data when GatherPress ships breaking changes — designed to be activated alongside core GatherPress in lockstep with matching version numbers.
 
+[0.36.1]: https://github.com/GatherPress/gatherpress-alpha/compare/0.36.0...0.36.1
 [0.36.0]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.4...0.36.0
 [0.35.4]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.3...0.35.4
 [0.35.3]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.2...0.35.3
