@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+The 0.36.1 migration also marks the location of password-protected events as not public, past events included, keeping the location itself.

@@ -106,6 +106,13 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 	</ul>
 	<p><em><?php esc_html_e( 'Upcoming events clear their copied location on their own the next time they are viewed. This migration also covers past events, which GatherPress no longer refreshes. It is safe to run more than once.', 'gatherpress-alpha' ); ?></em></p>
 
+	<p><strong><?php esc_html_e( 'Password-Protected Events:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'GatherPress 0.36.1 marks a password-protected event\'s location as not public, and keeps its date and place out of the REST API for viewers without its password. Events saved before 0.36.1 can still have their location marked public, so this migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Mark the location of password-protected events as not public, past events included, keeping the location itself', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'GatherPress rechecks an event when it is saved, or when an upcoming one is viewed, so this covers past events that are not saved again. It is safe to run more than once.', 'gatherpress-alpha' ); ?></em></p>
+
 	<p><strong><?php esc_html_e( 'Network RSVP Settings Normalized:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The 0.35.0 RSVP settings migration only updated each site\'s own settings, so on multisite the network\'s copies kept the old values. GatherPress 0.37.0 no longer reads those values, so a subsite inheriting them from the network turns RSVP on for every event, even where an organizer turned it off, and never schedules RSVP cleanup. This migration will:', 'gatherpress-alpha' ); ?></p>
 	<ul>
