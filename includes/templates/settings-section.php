@@ -114,7 +114,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 	<p><?php esc_html_e( 'GatherPress 0.36.1 keeps a password-protected venue\'s details, and its link to the events held there, private for viewers without its password, as the Venue block already did. The venue\'s name stays public, as for any password-protected post. Data saved before 0.36.1 still carries those details, so this migration will:', 'gatherpress-alpha' ); ?></p>
 	<ul>
 		<li><?php esc_html_e( 'Rename venue terms that were saved with a "Protected: " or "Private: " prefix to the venue\'s title, leaving a term somebody renamed by hand untouched', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Clear the address and coordinates copied from a password-protected venue onto its events, past events included', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Clear the address and coordinates copied from a password-protected venue onto its events, past events included, keeping them on the venue so its events get them back if the password is removed', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Mark a password-protected venue\'s own location as not public, keeping the location itself', 'gatherpress-alpha' ); ?></li>
 	</ul>
 	<p><em><?php esc_html_e( 'Upcoming events clear their copied location on their own the next time they are viewed. This migration also covers past events, which GatherPress no longer refreshes. It is safe to run more than once.', 'gatherpress-alpha' ); ?></em></p>
