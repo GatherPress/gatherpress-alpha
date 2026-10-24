@@ -560,6 +560,7 @@ class Setup {
 	private function fix__0_36_1(): void {
 		$this->rename_prefixed_shadow_terms();
 		$this->clear_protected_venue_locations();
+		$this->mark_protected_event_locations_not_public();
 		$this->migrate_network_rsvp_setting_values();
 	}
 
@@ -706,6 +707,36 @@ class Setup {
 
 		if ( array() !== $cleared ) {
 			update_post_meta( $venue_id, $meta_key, $cleared );
+		}
+	}
+
+	/**
+	 * Marks the location of password-protected events as not public.
+	 *
+	 * Before 0.36.1, an event's `geo_public` ignored its password. 0.36.1
+	 * rechecks it when an event is saved, or when an upcoming one is viewed,
+	 * so a past event keeps the old value until it is saved again. The
+	 * location itself is kept, as 0.36.1 keeps it.
+	 *
+	 * @return void
+	 */
+	private function mark_protected_event_locations_not_public(): void {
+		$event_ids = get_posts(
+			array(
+				'post_type'    => get_post_types_by_support( Venue::ASSIGNMENT_SUPPORT ),
+				'post_status'  => 'any',
+				'has_password' => true,
+				'numberposts'  => -1,
+				'fields'       => 'ids',
+			)
+		);
+
+		update_meta_cache( 'post', $event_ids );
+
+		foreach ( $event_ids as $event_id ) {
+			if ( 1 === (int) get_post_meta( $event_id, 'geo_public', true ) ) {
+				Geo_Sync::write( $event_id, array( 'geo_public' => 0 ) );
+			}
 		}
 	}
 
