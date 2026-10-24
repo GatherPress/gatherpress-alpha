@@ -56,7 +56,6 @@ class Setup {
 		'0.35.0',
 		'0.36.0',
 		'0.36.1',
-		'0.37.0',
 	);
 
 	/**
@@ -509,15 +508,6 @@ class Setup {
 	}
 
 	/**
-	 * Fixes specific data issues that changed in 0.37.0 of the plugin.
-	 *
-	 * @return void
-	 */
-	private function fix__0_37_0(): void {
-		$this->migrate_network_rsvp_setting_values();
-	}
-
-	/**
 	 * Normalizes the network-level copies of the RSVP settings values.
 	 *
 	 * The 0.35.0 pass only rewrote each site's own option, so a network that
@@ -570,6 +560,7 @@ class Setup {
 	private function fix__0_36_1(): void {
 		$this->rename_prefixed_shadow_terms();
 		$this->clear_protected_venue_locations();
+		$this->migrate_network_rsvp_setting_values();
 	}
 
 	/**
