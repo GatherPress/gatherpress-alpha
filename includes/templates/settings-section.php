@@ -95,20 +95,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </p>
 
 <details class="gatherpress-alpha-version" open>
-	<summary><?php esc_html_e( 'Version 0.37.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.37.0' ) ); ?></summary>
-
-	<p><strong><?php esc_html_e( 'Network RSVP Settings Normalized:', 'gatherpress-alpha' ); ?></strong></p>
-	<p><?php esc_html_e( 'The 0.35.0 RSVP settings migration only updated each site\'s own settings, so on multisite the network\'s copies kept the old values. GatherPress 0.37.0 no longer reads those values, so a subsite inheriting them from the network turns RSVP on for every event, even where an organizer turned it off, and never schedules RSVP cleanup. This migration will:', 'gatherpress-alpha' ); ?></p>
-	<ul>
-		<li><?php esc_html_e( 'Rename the network\'s RSVP Mode value: all_on becomes enabled, per_event_on becomes per_event_enabled, and per_event_off becomes per_event_disabled (Disabled is unchanged)', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Rename the network\'s RSVP cleanup toggle value: off becomes disabled and on becomes enabled', 'gatherpress-alpha' ); ?></li>
-		<li><?php esc_html_e( 'Leave absent or already-normalized values untouched, so it is safe to run more than once', 'gatherpress-alpha' ); ?></li>
-	</ul>
-	<p><em><?php esc_html_e( 'Single sites are not affected. Their values were already normalized by the 0.35.0 migration.', 'gatherpress-alpha' ); ?></em></p>
-</details>
-
-<details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.36.1 Privacy Fixes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.1' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.36.1 Fixes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.1' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Password-Protected Venues:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'GatherPress 0.36.1 keeps a password-protected venue\'s details, and its link to the events held there, private for viewers without its password, as the Venue block already did. The venue\'s name stays public, as for any password-protected post. Data saved before 0.36.1 still carries those details, so this migration will:', 'gatherpress-alpha' ); ?></p>
@@ -118,6 +105,15 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 		<li><?php esc_html_e( 'Mark a password-protected venue\'s own location as not public, keeping the location itself', 'gatherpress-alpha' ); ?></li>
 	</ul>
 	<p><em><?php esc_html_e( 'Upcoming events clear their copied location on their own the next time they are viewed. This migration also covers past events, which GatherPress no longer refreshes. It is safe to run more than once.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'Network RSVP Settings Normalized:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The 0.35.0 RSVP settings migration only updated each site\'s own settings, so on multisite the network\'s copies kept the old values. GatherPress 0.37.0 no longer reads those values, so a subsite inheriting them from the network turns RSVP on for every event, even where an organizer turned it off, and never schedules RSVP cleanup. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename the network\'s RSVP Mode value: all_on becomes enabled, per_event_on becomes per_event_enabled, and per_event_off becomes per_event_disabled (Disabled is unchanged)', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Rename the network\'s RSVP cleanup toggle value: off becomes disabled and on becomes enabled', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave absent or already-normalized values untouched, so it is safe to run more than once', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Single sites are not affected. Their values were already normalized by the 0.35.0 migration.', 'gatherpress-alpha' ); ?></em></p>
 </details>
 
 <details class="gatherpress-alpha-version">
