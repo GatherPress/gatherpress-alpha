@@ -1,0 +1,4 @@
+Significance: patch
+Type: fixed
+
+The 0.36.1 migration keeps the event locations it clears from a password-protected venue, so GatherPress 0.36.1 can give them back if the venue's password is removed.

@@ -641,8 +641,9 @@ class Setup {
 	 * venue's address and coordinates, and they go out in the REST API.
 	 * 0.36.1 no longer copies them. This clears the copies already saved and
 	 * marks them not public, as 0.36.1 does, past events included, which
-	 * GatherPress no longer refreshes. It also marks the venue's own copy not
-	 * public.
+	 * GatherPress no longer refreshes. The cleared copies are kept on the
+	 * venue, as 0.36.1 keeps them, so its events get them back if the
+	 * password is removed. It also marks the venue's own copy not public.
 	 *
 	 * @return void
 	 */
@@ -671,10 +672,49 @@ class Setup {
 
 				$event_ids = get_objects_in_term( $term->term_id, $taxonomy );
 
-				foreach ( is_array( $event_ids ) ? $event_ids : array() as $event_id ) {
-					Geo_Sync::write( (int) $event_id, Geo_Sync::build_values( array(), false ) );
-				}
+				$this->clear_event_locations( $venue->ID, is_array( $event_ids ) ? array_map( 'intval', $event_ids ) : array() );
 			}
+		}
+	}
+
+	/**
+	 * Clears the location a venue's events copied, keeping each copy on the venue.
+	 *
+	 * GatherPress 0.36.1 gives the kept copies back once the venue is public
+	 * again, each event its own, so a past event keeps where it happened.
+	 * Only the first copy is kept, and an event without a location has none
+	 * to keep, so running this again changes nothing.
+	 *
+	 * @param int   $venue_id  The venue's post ID.
+	 * @param int[] $event_ids The post IDs of the venue's events.
+	 *
+	 * @return void
+	 */
+	private function clear_event_locations( int $venue_id, array $event_ids ): void {
+		// GatherPress 0.36.1's Geo_Sync::CLEARED_COPIES_META_KEY, spelled out so
+		// this does not depend on the constant.
+		$meta_key = '_gatherpress_geo_cleared_copies';
+		$cleared  = get_post_meta( $venue_id, $meta_key, true );
+		$cleared  = is_array( $cleared ) ? $cleared : array();
+
+		update_meta_cache( 'post', $event_ids );
+
+		foreach ( $event_ids as $event_id ) {
+			$location = array(
+				'latitude'  => (string) get_post_meta( $event_id, 'geo_latitude', true ),
+				'longitude' => (string) get_post_meta( $event_id, 'geo_longitude', true ),
+				'address'   => (string) get_post_meta( $event_id, 'geo_address', true ),
+			);
+
+			if ( ! isset( $cleared[ $event_id ] ) && '' !== implode( '', $location ) ) {
+				$cleared[ $event_id ] = $location;
+			}
+
+			Geo_Sync::write( $event_id, Geo_Sync::build_values( array(), false ) );
+		}
+
+		if ( array() !== $cleared ) {
+			update_post_meta( $venue_id, $meta_key, $cleared );
 		}
 	}
 
