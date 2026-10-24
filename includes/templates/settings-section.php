@@ -124,7 +124,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.36.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.36.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Settings and Event Meta Renamed:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'Several settings and two event meta keys were renamed so their names say what they mean. Maximum Attendance Limit is now Capacity, Maximum Number of Guests is now Guest Limit, and the six Venue Map defaults drop the redundant word "default". This migration will:', 'gatherpress-alpha' ); ?></p>
@@ -148,7 +148,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.35.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.35.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Icon Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The GatherPress Icon block has been replaced with the WordPress core Icon block introduced in WordPress 7.0. This migration will:', 'gatherpress-alpha' ); ?></p>
@@ -189,7 +189,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.34.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.34.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.34.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.34.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Events List Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The deprecated Events List block has been replaced with the Event Query Loop, a variation of the core Query Loop block. This migration will:', 'gatherpress-alpha' ); ?></p>
@@ -230,7 +230,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.33.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.33.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.33.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.33.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Add to Calendar Block Updated:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -250,7 +250,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.32.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.32.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.32.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.32.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'RSVP Blocks Updated:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -259,7 +259,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.31.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.31.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.31.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.31.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Event Datetime Meta Consolidated:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -268,7 +268,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.30.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.30.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.30.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.30.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'RSVP Storage Moved to Comments:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -278,7 +278,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.29.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.29.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.29.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.29.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Plugin Prefix Renamed (gp_ to gatherpress_):', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
