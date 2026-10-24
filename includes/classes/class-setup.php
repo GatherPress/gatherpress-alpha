@@ -11,16 +11,20 @@ namespace GatherPress_Alpha;
 defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 use GatherPress\Core\Event;
+use GatherPress\Core\Geo_Sync;
 use GatherPress\Core\Rsvp;
 use GatherPress\Core\Rsvp_Query;
 use GatherPress\Core\Traits\Singleton;
 use GatherPress\Core\Settings;
+use GatherPress\Core\Shadow_Source;
 use GatherPress\Core\Utility;
 use GatherPress_Alpha\Commands\Cli;
 use WP_CLI;
 use WP_Query;
+use WP_Term;
 use GatherPress\Core\Topic;
 use GatherPress\Core\Venue;
+use GatherPress\Core\Venue\Setup as Venue_Setup;
 
 /**
  * Class Setup.
@@ -51,6 +55,7 @@ class Setup {
 		'0.34.0',
 		'0.35.0',
 		'0.36.0',
+		'0.36.1',
 	);
 
 	/**
@@ -59,6 +64,13 @@ class Setup {
 	 * @var bool
 	 */
 	private bool $migrated_network_settings = false;
+
+	/**
+	 * Whether the network-level RSVP settings values pass has already run this request.
+	 *
+	 * @var bool
+	 */
+	private bool $migrated_network_rsvp_setting_values = false;
 
 	/**
 	 * Constructor for the Setup class.
@@ -493,6 +505,239 @@ class Setup {
 
 		// Update the stored version to current plugin version.
 		$this->set_last_run_version( GATHERPRESS_ALPHA_VERSION );
+	}
+
+	/**
+	 * Normalizes the network-level copies of the RSVP settings values.
+	 *
+	 * The 0.35.0 pass only rewrote each site's own option, so a network that
+	 * kept RSVP Mode or the cleanup toggle in its settings still holds the
+	 * pre-0.35.0 values in site meta, where `switch_to_blog()` does not reach.
+	 * The 0.36.0 network pass then renamed `rsvp_cleanup_switch` without
+	 * touching its value, which runs first, so each map is applied under the
+	 * setting's current name.
+	 *
+	 * Runs once per request rather than once per site, and is idempotent
+	 * either way.
+	 *
+	 * @return void
+	 */
+	private function migrate_network_rsvp_setting_values(): void {
+		if ( ! is_multisite() || $this->migrated_network_rsvp_setting_values ) {
+			return;
+		}
+
+		$this->migrated_network_rsvp_setting_values = true;
+
+		$values = get_site_option( Settings::OPTION_NAME, array() );
+
+		if ( ! is_array( $values ) ) {
+			return;
+		}
+
+		$renamed = $this->get_renamed_settings();
+		$changed = false;
+
+		foreach ( $this->get_rsvp_setting_value_maps() as $key => $map ) {
+			$name = $renamed[ $key ] ?? $key;
+
+			if ( isset( $values[ $name ] ) && isset( $map[ $values[ $name ] ] ) ) {
+				$values[ $name ] = $map[ $values[ $name ] ];
+				$changed         = true;
+			}
+		}
+
+		if ( $changed ) {
+			update_site_option( Settings::OPTION_NAME, $values );
+		}
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.36.1 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_36_1(): void {
+		$this->rename_prefixed_shadow_terms();
+		$this->clear_protected_venue_locations();
+		$this->mark_protected_event_locations_not_public();
+		$this->migrate_network_rsvp_setting_values();
+	}
+
+	/**
+	 * Renames shadow terms named with a "Protected: " or "Private: " prefix.
+	 *
+	 * Before 0.36.1, a venue (or other shadow source) saved outside the admin,
+	 * such as from the block editor, named its term with get_the_title(),
+	 * which prefixes a password-protected or private post's title. 0.36.1
+	 * names the term from the title alone. Every published or private post
+	 * is checked, since a password removed before the upgrade leaves the
+	 * prefix behind. A term is only renamed when its name is exactly the
+	 * title in one of those prefixed formats, so one renamed by hand is left
+	 * alone.
+	 *
+	 * @return void
+	 */
+	private function rename_prefixed_shadow_terms(): void {
+		$shadow_source = Shadow_Source::get_instance();
+
+		foreach ( get_post_types_by_support( Shadow_Source::SUPPORT ) as $post_type ) {
+			$taxonomy = $shadow_source->get_taxonomy( $post_type );
+			$posts    = get_posts(
+				array(
+					'post_type'   => $post_type,
+					'post_status' => array( 'publish', 'private' ),
+					'numberposts' => -1,
+				)
+			);
+
+			foreach ( $posts as $post ) {
+				// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filters, as get_the_title() applies them.
+				/* translators: %s: Protected post title. */
+				$protected_format = (string) apply_filters( 'protected_title_format', __( 'Protected: %s', 'default' ), $post );
+				/* translators: %s: Private post title. */
+				$private_format = (string) apply_filters( 'private_title_format', __( 'Private: %s', 'default' ), $post );
+				// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
+
+				$name      = $this->format_shadow_term_name( $post->post_title, $post->ID );
+				$old_names = array(
+					$this->format_shadow_term_name( sprintf( $protected_format, $post->post_title ), $post->ID ),
+					$this->format_shadow_term_name( sprintf( $private_format, $post->post_title ), $post->ID ),
+				);
+				$term      = get_term_by( 'slug', $shadow_source->term_slug_from_post_name( $post->post_name ), $taxonomy );
+
+				if ( $term instanceof WP_Term && $term->name !== $name && in_array( $term->name, $old_names, true ) ) {
+					wp_update_term( $term->term_id, $taxonomy, array( 'name' => $name ) );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Formats a title the way GatherPress names a shadow term from it.
+	 *
+	 * @param string $title   The title.
+	 * @param int    $post_id The source post ID.
+	 *
+	 * @return string The term name.
+	 */
+	private function format_shadow_term_name( string $title, int $post_id ): string {
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter, as GatherPress applies it.
+		return html_entity_decode( (string) apply_filters( 'the_title', $title, $post_id ) );
+	}
+
+	/**
+	 * Clears the location events copied from a password-protected venue.
+	 *
+	 * Before 0.36.1, the event location fields (`geo_*`) took a protected
+	 * venue's address and coordinates, and they go out in the REST API.
+	 * 0.36.1 no longer copies them. This clears the copies already saved and
+	 * marks them not public, as 0.36.1 does, past events included, which
+	 * GatherPress no longer refreshes. The cleared copies are kept on the
+	 * venue, as 0.36.1 keeps them, so its events get them back if the
+	 * password is removed. It also marks the venue's own copy not public.
+	 *
+	 * @return void
+	 */
+	private function clear_protected_venue_locations(): void {
+		$venue_setup = Venue_Setup::get_instance();
+
+		foreach ( array_unique( $venue_setup->get_venue_post_type_map() ) as $venue_post_type ) {
+			$taxonomy = $venue_setup->get_taxonomy( $venue_post_type );
+			$venues   = get_posts(
+				array(
+					'post_type'    => $venue_post_type,
+					'post_status'  => 'any',
+					'has_password' => true,
+					'numberposts'  => -1,
+				)
+			);
+
+			foreach ( $venues as $venue ) {
+				Geo_Sync::write( $venue->ID, Geo_Sync::build_values( ( new Venue( $venue->ID ) )->get_information(), false ) );
+
+				$term = get_term_by( 'slug', $venue_setup->term_slug_from_post_name( $venue->post_name ), $taxonomy );
+
+				if ( ! $term instanceof WP_Term ) {
+					continue;
+				}
+
+				$event_ids = get_objects_in_term( $term->term_id, $taxonomy );
+
+				$this->clear_event_locations( $venue->ID, is_array( $event_ids ) ? array_map( 'intval', $event_ids ) : array() );
+			}
+		}
+	}
+
+	/**
+	 * Clears the location a venue's events copied, keeping each copy on the venue.
+	 *
+	 * GatherPress 0.36.1 gives the kept copies back once the venue is public
+	 * again, each event its own, so a past event keeps where it happened.
+	 * Only the first copy is kept, and an event without a location has none
+	 * to keep, so running this again changes nothing.
+	 *
+	 * @param int   $venue_id  The venue's post ID.
+	 * @param int[] $event_ids The post IDs of the venue's events.
+	 *
+	 * @return void
+	 */
+	private function clear_event_locations( int $venue_id, array $event_ids ): void {
+		// GatherPress 0.36.1's Geo_Sync::CLEARED_COPIES_META_KEY, spelled out so
+		// this does not depend on the constant.
+		$meta_key = '_gatherpress_geo_cleared_copies';
+		$cleared  = get_post_meta( $venue_id, $meta_key, true );
+		$cleared  = is_array( $cleared ) ? $cleared : array();
+
+		update_meta_cache( 'post', $event_ids );
+
+		foreach ( $event_ids as $event_id ) {
+			$location = array(
+				'latitude'  => (string) get_post_meta( $event_id, 'geo_latitude', true ),
+				'longitude' => (string) get_post_meta( $event_id, 'geo_longitude', true ),
+				'address'   => (string) get_post_meta( $event_id, 'geo_address', true ),
+			);
+
+			if ( ! isset( $cleared[ $event_id ] ) && '' !== implode( '', $location ) ) {
+				$cleared[ $event_id ] = $location;
+			}
+
+			Geo_Sync::write( $event_id, Geo_Sync::build_values( array(), false ) );
+		}
+
+		if ( array() !== $cleared ) {
+			update_post_meta( $venue_id, $meta_key, $cleared );
+		}
+	}
+
+	/**
+	 * Marks the location of password-protected events as not public.
+	 *
+	 * Before 0.36.1, an event's `geo_public` ignored its password. 0.36.1
+	 * rechecks it when an event is saved, or when an upcoming one is viewed,
+	 * so a past event keeps the old value until it is saved again. The
+	 * location itself is kept, as 0.36.1 keeps it.
+	 *
+	 * @return void
+	 */
+	private function mark_protected_event_locations_not_public(): void {
+		$event_ids = get_posts(
+			array(
+				'post_type'    => get_post_types_by_support( Venue::ASSIGNMENT_SUPPORT ),
+				'post_status'  => 'any',
+				'has_password' => true,
+				'numberposts'  => -1,
+				'fields'       => 'ids',
+			)
+		);
+
+		update_meta_cache( 'post', $event_ids );
+
+		foreach ( $event_ids as $event_id ) {
+			if ( 1 === (int) get_post_meta( $event_id, 'geo_public', true ) ) {
+				Geo_Sync::write( $event_id, array( 'geo_public' => 0 ) );
+			}
+		}
 	}
 
 	/**
@@ -2341,7 +2586,27 @@ class Setup {
 			return;
 		}
 
-		$value_maps = array(
+		$changed = false;
+
+		foreach ( $this->get_rsvp_setting_value_maps() as $key => $map ) {
+			if ( isset( $settings[ $key ] ) && isset( $map[ $settings[ $key ] ] ) ) {
+				$settings[ $key ] = $map[ $settings[ $key ] ];
+				$changed          = true;
+			}
+		}
+
+		if ( $changed ) {
+			update_option( Settings::OPTION_NAME, $settings );
+		}
+	}
+
+	/**
+	 * RSVP settings values renamed in 0.35.0, keyed by the setting's 0.35.0 name.
+	 *
+	 * @return array<string, array<string, string>> Setting => former value => current value.
+	 */
+	private function get_rsvp_setting_value_maps(): array {
+		return array(
 			'rsvp_mode'           => array(
 				'all_on'        => 'enabled',
 				'per_event_on'  => 'per_event_enabled',
@@ -2352,19 +2617,6 @@ class Setup {
 				'on'  => 'enabled',
 			),
 		);
-
-		$changed = false;
-
-		foreach ( $value_maps as $key => $map ) {
-			if ( isset( $settings[ $key ] ) && isset( $map[ $settings[ $key ] ] ) ) {
-				$settings[ $key ] = $map[ $settings[ $key ] ];
-				$changed          = true;
-			}
-		}
-
-		if ( $changed ) {
-			update_option( Settings::OPTION_NAME, $settings );
-		}
 	}
 
 	/**

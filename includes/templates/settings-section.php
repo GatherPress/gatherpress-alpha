@@ -95,7 +95,36 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </p>
 
 <details class="gatherpress-alpha-version" open>
-	<summary><?php esc_html_e( 'Version 0.36.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.36.1 Fixes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.1' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Password-Protected Venues:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'GatherPress 0.36.1 keeps a password-protected venue\'s details, and its link to the events held there, private for viewers without its password, as the Venue block already did. The venue\'s name stays public, as for any password-protected post. Data saved before 0.36.1 still carries those details, so this migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename venue terms that were saved with a "Protected: " or "Private: " prefix to the venue\'s title, leaving a term somebody renamed by hand untouched', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Clear the address and coordinates copied from a password-protected venue onto its events, past events included, keeping them on the venue so its events get them back if the password is removed', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Mark a password-protected venue\'s own location as not public, keeping the location itself', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Upcoming events clear their copied location on their own the next time they are viewed. This migration also covers past events, which GatherPress no longer refreshes. It is safe to run more than once.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'Password-Protected Events:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'GatherPress 0.36.1 marks a password-protected event\'s location as not public, and keeps its date and place out of the REST API for viewers without its password. Events saved before 0.36.1 can still have their location marked public, so this migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Mark the location of password-protected events as not public, past events included, keeping the location itself', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'GatherPress rechecks an event when it is saved, or when an upcoming one is viewed, so this covers past events that are not saved again. It is safe to run more than once.', 'gatherpress-alpha' ); ?></em></p>
+
+	<p><strong><?php esc_html_e( 'Network RSVP Settings Normalized:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'The 0.35.0 RSVP settings migration only updated each site\'s own settings, so on multisite the network\'s copies kept the old values. GatherPress 0.37.0 no longer reads those values, so a subsite inheriting them from the network turns RSVP on for every event, even where an organizer turned it off, and never schedules RSVP cleanup. This migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Rename the network\'s RSVP Mode value: all_on becomes enabled, per_event_on becomes per_event_enabled, and per_event_off becomes per_event_disabled (Disabled is unchanged)', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Rename the network\'s RSVP cleanup toggle value: off becomes disabled and on becomes enabled', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Leave absent or already-normalized values untouched, so it is safe to run more than once', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Single sites are not affected. Their values were already normalized by the 0.35.0 migration.', 'gatherpress-alpha' ); ?></em></p>
+</details>
+
+<details class="gatherpress-alpha-version">
+	<summary><?php esc_html_e( 'Version 0.36.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Settings and Event Meta Renamed:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'Several settings and two event meta keys were renamed so their names say what they mean. Maximum Attendance Limit is now Capacity, Maximum Number of Guests is now Guest Limit, and the six Venue Map defaults drop the redundant word "default". This migration will:', 'gatherpress-alpha' ); ?></p>
@@ -119,7 +148,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.35.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.35.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.35.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Icon Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The GatherPress Icon block has been replaced with the WordPress core Icon block introduced in WordPress 7.0. This migration will:', 'gatherpress-alpha' ); ?></p>
@@ -156,11 +185,11 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 		<li><?php esc_html_e( 'Rename the RSVP cleanup toggle values: off becomes disabled and on becomes enabled', 'gatherpress-alpha' ); ?></li>
 		<li><?php esc_html_e( 'Leave absent or already-normalized values untouched, so it is safe to run more than once', 'gatherpress-alpha' ); ?></li>
 	</ul>
-	<p><em><?php esc_html_e( 'RSVP behaves the same before and after — only the stored value names change.', 'gatherpress-alpha' ); ?></em></p>
+	<p><em><?php esc_html_e( 'Until this runs, a site on a per-event RSVP Mode has RSVP turned on for every event, even where an organizer turned it off, and RSVP cleanup is never scheduled. Afterward RSVP behaves exactly as it did before the update.', 'gatherpress-alpha' ); ?></em></p>
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.34.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.34.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.34.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.34.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Events List Block Replaced:', 'gatherpress-alpha' ); ?></strong></p>
 	<p><?php esc_html_e( 'The deprecated Events List block has been replaced with the Event Query Loop, a variation of the core Query Loop block. This migration will:', 'gatherpress-alpha' ); ?></p>
@@ -201,7 +230,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.33.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.33.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.33.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.33.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Add to Calendar Block Updated:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -221,7 +250,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.32.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.32.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.32.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.32.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'RSVP Blocks Updated:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -230,7 +259,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.31.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.31.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.31.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.31.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Event Datetime Meta Consolidated:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -239,7 +268,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.30.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.30.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.30.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.30.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'RSVP Storage Moved to Comments:', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
@@ -249,7 +278,7 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </details>
 
 <details class="gatherpress-alpha-version">
-	<summary><?php esc_html_e( 'Version 0.29.* Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.29.0' ) ); ?></summary>
+	<summary><?php esc_html_e( 'Version 0.29.0 Breaking Changes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.29.0' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Plugin Prefix Renamed (gp_ to gatherpress_):', 'gatherpress-alpha' ); ?></strong></p>
 	<ul>
