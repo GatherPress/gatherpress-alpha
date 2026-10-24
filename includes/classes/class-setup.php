@@ -20,7 +20,6 @@ use GatherPress\Core\Shadow_Source;
 use GatherPress\Core\Utility;
 use GatherPress_Alpha\Commands\Cli;
 use WP_CLI;
-use WP_Post;
 use WP_Query;
 use WP_Term;
 use GatherPress\Core\Topic;
@@ -579,8 +578,11 @@ class Setup {
 	 * Before 0.36.1, a venue (or other shadow source) saved outside the admin,
 	 * such as from the block editor, named its term with get_the_title(),
 	 * which prefixes a password-protected or private post's title. 0.36.1
-	 * names the term from the title alone. A term is only renamed when its
-	 * name ends with that title, so one renamed by hand is left alone.
+	 * names the term from the title alone. Every published or private post
+	 * is checked, since a password removed before the upgrade leaves the
+	 * prefix behind. A term is only renamed when its name is exactly the
+	 * title in one of those prefixed formats, so one renamed by hand is left
+	 * alone.
 	 *
 	 * @return void
 	 */
@@ -598,15 +600,21 @@ class Setup {
 			);
 
 			foreach ( $posts as $post ) {
-				if ( '' === $post->post_password && 'private' !== $post->post_status ) {
-					continue;
-				}
+				// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filters, as get_the_title() applies them.
+				/* translators: %s: Protected post title. */
+				$protected_format = (string) apply_filters( 'protected_title_format', __( 'Protected: %s', 'default' ), $post );
+				/* translators: %s: Private post title. */
+				$private_format = (string) apply_filters( 'private_title_format', __( 'Private: %s', 'default' ), $post );
+				// phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound
 
-				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter, as GatherPress applies it.
-				$name = html_entity_decode( (string) apply_filters( 'the_title', $post->post_title, $post->ID ) );
-				$term = get_term_by( 'slug', $shadow_source->term_slug_from_post_name( $post->post_name ), $taxonomy );
+				$name      = $this->format_shadow_term_name( $post->post_title, $post->ID );
+				$old_names = array(
+					$this->format_shadow_term_name( sprintf( $protected_format, $post->post_title ), $post->ID ),
+					$this->format_shadow_term_name( sprintf( $private_format, $post->post_title ), $post->ID ),
+				);
+				$term      = get_term_by( 'slug', $shadow_source->term_slug_from_post_name( $post->post_name ), $taxonomy );
 
-				if ( $term instanceof WP_Term && $term->name !== $name && str_ends_with( $term->name, $name ) ) {
+				if ( $term instanceof WP_Term && $term->name !== $name && in_array( $term->name, $old_names, true ) ) {
 					wp_update_term( $term->term_id, $taxonomy, array( 'name' => $name ) );
 				}
 			}
@@ -614,13 +622,27 @@ class Setup {
 	}
 
 	/**
+	 * Formats a title the way GatherPress names a shadow term from it.
+	 *
+	 * @param string $title   The title.
+	 * @param int    $post_id The source post ID.
+	 *
+	 * @return string The term name.
+	 */
+	private function format_shadow_term_name( string $title, int $post_id ): string {
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core's filter, as GatherPress applies it.
+		return html_entity_decode( (string) apply_filters( 'the_title', $title, $post_id ) );
+	}
+
+	/**
 	 * Clears the location events copied from a password-protected venue.
 	 *
 	 * Before 0.36.1, the event location fields (`geo_*`) took a protected
 	 * venue's address and coordinates, and they go out in the REST API.
-	 * 0.36.1 no longer copies them. This clears the copies already saved,
-	 * past events included, which GatherPress no longer refreshes, and marks
-	 * the venue's own copy not public.
+	 * 0.36.1 no longer copies them. This clears the copies already saved and
+	 * marks them not public, as 0.36.1 does, past events included, which
+	 * GatherPress no longer refreshes. It also marks the venue's own copy not
+	 * public.
 	 *
 	 * @return void
 	 */
@@ -650,15 +672,7 @@ class Setup {
 				$event_ids = get_objects_in_term( $term->term_id, $taxonomy );
 
 				foreach ( is_array( $event_ids ) ? $event_ids : array() as $event_id ) {
-					$event = get_post( (int) $event_id );
-
-					Geo_Sync::write(
-						(int) $event_id,
-						Geo_Sync::build_values(
-							array(),
-							$event instanceof WP_Post && 'publish' === $event->post_status && '' === $event->post_password
-						)
-					);
+					Geo_Sync::write( (int) $event_id, Geo_Sync::build_values( array(), false ) );
 				}
 			}
 		}
