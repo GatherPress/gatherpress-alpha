@@ -14,6 +14,10 @@ every GatherPress release has a matching GatherPress Alpha release that ships
 the migration code needed to bridge breaking changes between versions. This
 plugin is a temporary developer companion that goes away at GatherPress 1.0.0.
 
+## [0.36.2] - 2026-11-07
+### Changed
+- Track the GatherPress 0.36.2 patch release, which the plugin is version-locked to.
+
 ## [0.36.1] - 2026-10-24
 ### Changed
 - The Alpha screen names each breaking-changes section by its exact version, such as "Version 0.36.0 Breaking Changes", since 0.36.1 now has a section of its own. [#113]
@@ -157,6 +161,7 @@ Maintenance release tracking GatherPress 0.29.1.
 
 First public release of the GatherPress Alpha companion plugin. Provides a small migration runner that fixes legacy data when GatherPress ships breaking changes — designed to be activated alongside core GatherPress in lockstep with matching version numbers.
 
+[0.36.2]: https://github.com/GatherPress/gatherpress-alpha/compare/0.36.1...0.36.2
 [0.36.1]: https://github.com/GatherPress/gatherpress-alpha/compare/0.36.0...0.36.1
 [0.36.0]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.4...0.36.0
 [0.35.4]: https://github.com/GatherPress/gatherpress-alpha/compare/0.35.3...0.35.4
