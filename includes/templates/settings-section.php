@@ -95,6 +95,18 @@ $gatherpress_alpha_badge = static function ( bool $gatherpress_alpha_pending ): 
 </p>
 
 <details class="gatherpress-alpha-version" open>
+	<summary><?php esc_html_e( 'Version 0.37.0 Fixes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.37.0' ) ); ?></summary>
+
+	<p><strong><?php esc_html_e( 'Event Occurrences:', 'gatherpress-alpha' ); ?></strong></p>
+	<p><?php esc_html_e( 'GatherPress 0.37.0 starts treating every event as a series of one, the groundwork for recurring events, and keeps a row for each event in a new occurrence table. Events saved before 0.37.0 have no row yet, so this migration will:', 'gatherpress-alpha' ); ?></p>
+	<ul>
+		<li><?php esc_html_e( 'Create the occurrence table if GatherPress has not created it yet', 'gatherpress-alpha' ); ?></li>
+		<li><?php esc_html_e( 'Add one row for each event that has a start date, copied from its dates, leaving events that already have a row untouched', 'gatherpress-alpha' ); ?></li>
+	</ul>
+	<p><em><?php esc_html_e( 'Nothing reads the occurrence table yet, so this changes nothing a visitor sees. It is safe to run more than once.', 'gatherpress-alpha' ); ?></em></p>
+</details>
+
+<details class="gatherpress-alpha-version">
 	<summary><?php esc_html_e( 'Version 0.36.1 Fixes', 'gatherpress-alpha' ); ?><?php $gatherpress_alpha_badge( $gatherpress_alpha_is_pending( '0.36.1' ) ); ?></summary>
 
 	<p><strong><?php esc_html_e( 'Password-Protected Venues:', 'gatherpress-alpha' ); ?></strong></p>

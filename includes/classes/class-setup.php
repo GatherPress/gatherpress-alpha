@@ -11,6 +11,7 @@ namespace GatherPress_Alpha;
 defined( 'ABSPATH' ) || exit; // @codeCoverageIgnore
 
 use GatherPress\Core\Event;
+use GatherPress\Core\Event\Recurrence\Occurrences;
 use GatherPress\Core\Geo_Sync;
 use GatherPress\Core\Rsvp;
 use GatherPress\Core\Rsvp_Query;
@@ -56,6 +57,7 @@ class Setup {
 		'0.35.0',
 		'0.36.0',
 		'0.36.1',
+		'0.37.0',
 	);
 
 	/**
@@ -550,6 +552,69 @@ class Setup {
 		if ( $changed ) {
 			update_site_option( Settings::OPTION_NAME, $values );
 		}
+	}
+
+	/**
+	 * Fixes specific data issues that changed in 0.37.0 of the plugin.
+	 *
+	 * @return void
+	 */
+	private function fix__0_37_0(): void {
+		$this->backfill_event_occurrences();
+	}
+
+	/**
+	 * Gives every existing event its row in the occurrence table.
+	 *
+	 * GatherPress 0.37.0 treats every event as a series of one and keeps a row
+	 * per event in `gatherpress_event_occurrences`, written when the event's
+	 * dates are saved. Events saved before then have no row. This copies one
+	 * from each event's row in the events table, with the occurrence
+	 * identifier built the way `Occurrences::recurrence_id()` builds it: the
+	 * local start in `Ymd\THis` form. An event that already has a row, or has
+	 * no start, is left alone, so it is safe to run more than once.
+	 *
+	 * The table is created first, since GatherPress only creates it on an
+	 * admin request after an update and this can run from WP-CLI before one.
+	 *
+	 * @return void
+	 */
+	private function backfill_event_occurrences(): void {
+		global $wpdb;
+
+		if ( ! class_exists( Occurrences::class ) ) {
+			return;
+		}
+
+		// Loading WordPress core file for dbDelta function, not importing a class.
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php'; // NOSONAR.
+
+		dbDelta( Occurrences::schema() );
+
+		$occurrences = Occurrences::table();
+		$events      = sprintf( Event::TABLE_FORMAT, $wpdb->prefix );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One-off migration of plugin-owned tables.
+		$wpdb->query(
+			$wpdb->prepare(
+				'INSERT INTO %i
+					(series_post_id, recurrence_id, datetime_start, datetime_start_gmt,
+					datetime_end, datetime_end_gmt, timezone, status)
+				SELECT e.post_id, DATE_FORMAT(e.datetime_start, %s), e.datetime_start, e.datetime_start_gmt,
+					e.datetime_end, e.datetime_end_gmt, e.timezone, %s
+				FROM %i AS e
+				INNER JOIN %i AS p ON p.ID = e.post_id
+				WHERE e.datetime_start > %s
+					AND NOT EXISTS ( SELECT 1 FROM %i AS o WHERE o.series_post_id = e.post_id )',
+				$occurrences,
+				'%Y%m%dT%H%i%s',
+				Occurrences::STATUS_SCHEDULED,
+				$events,
+				$wpdb->posts,
+				'0000-00-00 00:00:00',
+				$occurrences
+			)
+		);
 	}
 
 	/**
