@@ -250,6 +250,15 @@ jobs:
           branch="sync/${VERSION}-changelog-parity"
           main_sha=$(gh api "repos/${REPO}/git/ref/heads/main" --jq '.object.sha')
 
+          # The parity commit replaces main's CHANGELOG.md with the rolled copy,
+          # so stop if main's changed since the commit this release rolled from.
+          git fetch --quiet origin main
+
+          if [ "$(git rev-parse "HEAD~1:CHANGELOG.md")" != "$(git rev-parse "${main_sha}:CHANGELOG.md")" ]; then
+            echo "::error::main's CHANGELOG.md differs from the one ${VERSION} rolled up from. Rebuild the parity branch by hand (docs/release-process.md)."
+            exit 1
+          fi
+
           gh api "repos/${REPO}/git/refs" \
             -f ref="refs/heads/${branch}" -f sha="${main_sha}" > /dev/null
 
@@ -261,7 +270,6 @@ jobs:
             '[{path: $path, contents: ($contents | rtrimstr("\n"))}]' > /tmp/parity-additions.json
 
           # Delete only the consumed entry files that exist on main.
-          git fetch --quiet origin main
           while read -r path; do
             [ -z "${path}" ] && continue
             if git cat-file -e "${main_sha}:${path}" 2>/dev/null; then
