@@ -1,4 +1,0 @@
-Significance: patch
-Type: added
-
-Open a changelog parity PR to main on stable releases from the release workflow, keeping main in step with rolled changelog entries.

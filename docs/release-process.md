@@ -6,7 +6,7 @@ Alpha. The mechanics are automated by
 doc covers what to expect, what to verify, and what to do when something
 doesn't go as planned.
 
-GatherPress Alpha ships in lockstep with GatherPress core - every GatherPress
+GatherPress Alpha ships in lockstep with GatherPress core — every GatherPress
 release has a matching Alpha release with the same version number. The Alpha
 plugin carries the migration code needed to bridge breaking changes between
 versions and goes away at GatherPress 1.0.0.
@@ -26,19 +26,19 @@ receives the develop→main release merge (with a merge commit, never squashed),
 changelog parity syncs, and patch `version-X.Y.N` branches cut from it.
 
 Between a release and the next cycle's first alpha, `develop` carries core's
-`X.Y+1.0-alpha.0` cycle marker. That version is never tagged - `release.yml`
-refuses it - so nothing reaches the Releases tab under it.
+`X.Y+1.0-alpha.0` cycle marker. That version is never tagged — `release.yml`
+refuses it — so nothing reaches the Releases tab under it.
 
 ## What gets automated
 
 Pushing a tag of the form `X.Y.Z` (stable) or `X.Y.Z-alpha.N` / `-beta.N`
 (pre-release) triggers `release.yml`. The workflow:
 
-| Tag pattern             | Distro zip                            | GitHub Release entry | Changelog body source                                                              |
-| ----------------------- | ------------------------------------- | -------------------- | ---------------------------------------------------------------------------------- |
-| `0.34.0`                | `gatherpress-alpha.0.34.0.zip`        | Release (latest)     | Rolled-up `[0.34.0]` section, committed back to `CHANGELOG.md` via auto-PR, with a matching changelog parity PR to `main` |
+| Tag pattern             | Distro zip                            | GitHub Release entry | Changelog body source                                                          |
+| ----------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------------------------ |
+| `0.34.0`                | `gatherpress-alpha.0.34.0.zip`        | Release (latest)     | Rolled-up `[0.34.0]` section, committed back to `CHANGELOG.md` via auto-PR     |
 | `0.34.0-alpha.1`        | `gatherpress-alpha.0.34.0-alpha.1.zip`| Pre-Release          | Rolled-up `[0.34.0-alpha.1]` section computed in an ephemeral checkout (no commit) |
-| `0.34.0-beta.1`         | Same shape as alpha                   | Pre-Release          | Same shape as alpha                                                                |
+| `0.34.0-beta.1`         | Same shape as alpha                   | Pre-Release          | Same shape as alpha                                                            |
 
 GatherPress Alpha does **not** deploy to wordpress.org. It is distributed only
 via GitHub releases. The distro zip's outer filename carries the version; the
@@ -98,7 +98,7 @@ git push origin 0.34.0-alpha.1
 
 1. Detects the tag is a pre-release (the `-alpha.` / `-beta.` suffix).
 2. Builds `gatherpress-alpha.0.34.0-alpha.1.zip` via `npm run plugin-zip`.
-3. Runs `composer changelog:write --use-version=0.34.0-alpha.1 ...` in an ephemeral working copy and extracts the resulting `[0.34.0-alpha.1]` section as the release body. The changes never get committed anywhere - they evaporate when the job ends.
+3. Runs `composer changelog:write --use-version=0.34.0-alpha.1 ...` in an ephemeral working copy and extracts the resulting `[0.34.0-alpha.1]` section as the release body. The changes never get committed anywhere — they evaporate when the job ends.
 4. Creates a GitHub **Pre-Release** with the zip attached and the rolled-up body. The Pre-Release is **not** marked as the latest release.
 5. **`.github/changelog/*` entries are left in place** so the eventual stable release still has them.
 
@@ -140,7 +140,7 @@ git push origin 0.34.0
 
 - [GitHub Releases page](https://github.com/GatherPress/gatherpress-alpha/releases) shows the new tag as "Latest release".
 - The release body matches the `[0.34.0]` section that just landed in `CHANGELOG.md` on the `release/0.34.0` branch.
-- The auto-PR titled "Roll up changelog for 0.34.0" is open against `develop`. **Merge this once you've confirmed the release body renders correctly** - that returns the rolled-up `CHANGELOG.md` and the cleaned `.github/changelog/` to the long-lived branch.
+- The auto-PR titled "Roll up changelog for 0.34.0" is open against `develop`. **Merge this once you've confirmed the release body renders correctly** — that returns the rolled-up `CHANGELOG.md` and the cleaned `.github/changelog/` to the long-lived branch.
 - The changelog parity PR titled "Carry the 0.34.0 changelog to main" is open against `main` (`sync/0.34.0-changelog-parity`). **Merge this with a merge commit (never squash)** so `main` is in step with the release and won't re-roll those same entries on the next patch release.
 
 ## Troubleshooting
@@ -155,7 +155,7 @@ git checkout 0.34.0
 ls .github/changelog/
 ```
 
-If it's truly empty, the release shouldn't go out - there's nothing to ship.
+If it's truly empty, the release shouldn't go out — there's nothing to ship.
 If there are entries but the rollup still failed, run the same command locally
 to reproduce.
 
