@@ -219,6 +219,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # Record deleted entry files before committing so the parity step can
+          # carry the same deletions to main.
+          git status --porcelain .github/changelog/ \
+            | awk '$1 == "D" {print $2}' > /tmp/consumed-changelog-entries.txt
+
           git checkout -b "${branch}"
           git add CHANGELOG.md .github/changelog/
           git commit -m "Roll up changelog for ${VERSION}"
@@ -229,6 +234,73 @@ jobs:
             --head "${branch}" \
             --title "Roll up changelog for ${VERSION}" \
             --body "Automated rollup of \`.github/changelog/*\` entries into \`CHANGELOG.md\` as part of the ${VERSION} release. Merge after confirming the rendered release body at https://github.com/${GITHUB_REPOSITORY}/releases/tag/${VERSION} looks right." \
+            --label "Skip Changelog"
+
+      - name: Open the changelog parity PR to main (stable only)
+        if: needs.prepare.outputs.is_prerelease == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          # main keeps the entry files the release already consumed unless
+          # something removes them, and the next patch is cut from main: it
+          # would roll those same entries into its own release. Same file
+          # changes as the rollup, applied to main instead of develop.
+          branch="sync/${VERSION}-changelog-parity"
+          main_sha=$(gh api "repos/${REPO}/git/ref/heads/main" --jq '.object.sha')
+
+          gh api "repos/${REPO}/git/refs" \
+            -f ref="refs/heads/${branch}" -f sha="${main_sha}" > /dev/null
+
+          # Off argv for the same 128 KiB reason as core's rollup step.
+          base64 -w0 CHANGELOG.md > /tmp/parity-changelog.b64
+          jq -n \
+            --arg path "CHANGELOG.md" \
+            --rawfile contents /tmp/parity-changelog.b64 \
+            '[{path: $path, contents: ($contents | rtrimstr("\n"))}]' > /tmp/parity-additions.json
+
+          # Delete only the consumed entry files that exist on main.
+          git fetch --quiet origin main
+          while read -r path; do
+            [ -z "${path}" ] && continue
+            if git cat-file -e "${main_sha}:${path}" 2>/dev/null; then
+              printf '%s\n' "${path}"
+            fi
+          done < /tmp/consumed-changelog-entries.txt \
+            | jq -R '{path: .}' | jq -s . > /tmp/parity-deletions.json
+
+          # expectedHeadOid guards the branch being committed to, which is the
+          # new sync branch, so it cannot notice main moving. Re-read main and
+          # stop rather than opening a parity PR against a base that no longer
+          # matches what shipped.
+          main_now=$(gh api "repos/${REPO}/git/ref/heads/main" --jq '.object.sha')
+
+          if [ "${main_now}" != "${main_sha}" ]; then
+            echo "::error::main moved from ${main_sha} to ${main_now} while the parity branch was being cut. Rebuild it by hand (docs/release-process.md)."
+            exit 1
+          fi
+
+          jq -n \
+            --arg query 'mutation ($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }' \
+            --arg repo "${REPO}" \
+            --arg branch "${branch}" \
+            --arg oid "${main_sha}" \
+            --arg headline "Carry the ${VERSION} changelog to main" \
+            --slurpfile additions /tmp/parity-additions.json \
+            --slurpfile deletions /tmp/parity-deletions.json \
+            '{query: $query, variables: {input: {branch: {repositoryNameWithOwner: $repo, branchName: $branch}, expectedHeadOid: $oid, message: {headline: $headline}, fileChanges: {additions: $additions[0], deletions: $deletions[0]}}}}' \
+            > /tmp/parity-commit.json
+
+          gh api graphql --input /tmp/parity-commit.json > /dev/null
+
+          # No auto-merge. main is the released state, and a surprise merge
+          # there is worse than one on develop, so this waits for a human.
+          gh pr create \
+            --base main \
+            --head "${branch}" \
+            --title "Carry the ${VERSION} changelog to main" \
+            --body "Puts main in step with the ${VERSION} release: the rolled \`[${VERSION}]\` section in \`CHANGELOG.md\`, and the entry files it consumed removed. The next patch is cut from main, so leaving those entries behind means the next release rolls them a second time. Merge with a merge commit, not a squash. Not set to auto-merge on purpose." \
             --label "Skip Changelog"
 
   # Build the distro zip manually instead of relying on wp-scripts plugin-zip:
