@@ -357,8 +357,10 @@ class Setup {
 	 * @return void
 	 */
 	public function ajax_fix(): void {
+		$capability = is_multisite() ? 'manage_network' : 'manage_options';
+
 		if (
-			! current_user_can( 'manage_options' ) ||
+			! current_user_can( $capability ) ||
 			! wp_verify_nonce( $_REQUEST['nonce'], 'gatherpress_alpha_nonce' )
 		) {
 			wp_send_json_error();
