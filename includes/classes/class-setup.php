@@ -358,7 +358,7 @@ class Setup {
 	 */
 	public function ajax_fix(): void {
 		if (
-			! current_user_can( 'manage_options' ) &&
+			! current_user_can( 'manage_options' ) ||
 			! wp_verify_nonce( $_REQUEST['nonce'], 'gatherpress_alpha_nonce' )
 		) {
 			wp_send_json_error();
