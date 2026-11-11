@@ -205,9 +205,7 @@ class Setup {
 	 * @return void
 	 */
 	public function render_pending_fixes_notice(): void {
-		$capability = is_multisite() ? 'manage_network' : 'manage_options';
-
-		if ( ! current_user_can( $capability ) || $this->is_alpha_screen() || ! $this->has_pending_fixes() ) {
+		if ( ! $this->current_user_can_run_fixes() || $this->is_alpha_screen() || ! $this->has_pending_fixes() ) {
 			return;
 		}
 
@@ -357,10 +355,8 @@ class Setup {
 	 * @return void
 	 */
 	public function ajax_fix(): void {
-		$capability = is_multisite() ? 'manage_network' : 'manage_options';
-
 		if (
-			! current_user_can( $capability ) ||
+			! $this->current_user_can_run_fixes() ||
 			! wp_verify_nonce( $_REQUEST['nonce'], 'gatherpress_alpha_nonce' )
 		) {
 			wp_send_json_error();
@@ -453,10 +449,13 @@ class Setup {
 	 */
 	public function fix(): int {
 		// Check if running via WP CLI.
-		$is_cli     = defined( 'WP_CLI' ) && WP_CLI;
-		$site_count = 0;
+		$is_cli = defined( 'WP_CLI' ) && WP_CLI;
 
-		if ( is_multisite() && ( $is_cli || current_user_can( 'manage_network' ) ) ) {
+		if ( ! $is_cli && ! $this->current_user_can_run_fixes() ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
+		}
+
+		if ( is_multisite() ) {
 			// `number => 0` is required so WP doesn't silently cap the loop at 100 sites.
 			$site_ids = get_sites(
 				array(
@@ -474,16 +473,24 @@ class Setup {
 				restore_current_blog();
 			}
 
-			$site_count = count( $site_ids );
-		} elseif ( $is_cli || current_user_can( 'manage_options' ) ) {
-			$this->run_fixes();
-
-			$site_count = 1;
-		} else {
-			wp_die( esc_html__( 'You do not have permission to perform this action.', 'gatherpress-alpha' ) );
+			return count( $site_ids );
 		}
 
-		return $site_count;
+		$this->run_fixes();
+
+		return 1;
+	}
+
+	/**
+	 * Whether the current user can run the compatibility fixes.
+	 *
+	 * Alpha is a network-level concern on multisite, so it takes a network
+	 * administrator there and a site administrator otherwise.
+	 *
+	 * @return bool True when the user can run the fixes.
+	 */
+	private function current_user_can_run_fixes(): bool {
+		return current_user_can( is_multisite() ? 'manage_network' : 'manage_options' );
 	}
 
 	/**
