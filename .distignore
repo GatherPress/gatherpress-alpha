@@ -8,6 +8,7 @@
 .nvmrc
 .vscode
 .editorconfig
+.coderabbit.yaml
 
 # CI + repo metadata (developer-facing, not shipped to users)
 .github

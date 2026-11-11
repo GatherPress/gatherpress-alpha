@@ -1,0 +1,14 @@
+# CodeRabbit config for GatherPress Alpha
+# Reference: https://docs.coderabbit.ai/reference/configuration
+
+reviews:
+  auto_review:
+    # Reviews are triggered intentionally, never automatically: comment
+    # '@coderabbitai review' on the PR (or 'full review' to redo from scratch).
+    enabled: false
+  path_filters:
+    - "!vendor/**"
+    - "!node_modules/**"
+    - "!package-lock.json"
+    - "!composer.lock"
+    - "!.github/changelog/**"
