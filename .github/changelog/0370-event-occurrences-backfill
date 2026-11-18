@@ -1,0 +1,4 @@
+Significance: minor
+Type: added
+
+Give every existing event its row in the occurrence table GatherPress 0.37.0 adds, the groundwork for recurring events.
