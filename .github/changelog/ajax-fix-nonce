@@ -1,4 +1,0 @@
-Significance: patch
-Type: security
-
-The Fix button on the Alpha screen requires a valid nonce from administrators too, so a cross-site request can no longer run the fixes.
