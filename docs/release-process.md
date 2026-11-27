@@ -22,8 +22,8 @@ in lockstep and the plugin refuses to run on a mismatch:
 | `main`    | the released version, stable tags        | core's `main`       |
 
 Feature and fix PRs target `develop` and are squash-merged. `main` only ever
-receives the develop→main release merge (with a merge commit, never squashed)
-and patch `version-X.Y.N` branches cut from it.
+receives the develop→main release merge (with a merge commit, never squashed),
+changelog parity syncs, and patch `version-X.Y.N` branches cut from it.
 
 Between a release and the next cycle's first alpha, `develop` carries core's
 `X.Y+1.0-alpha.0` cycle marker. That version is never tagged — `release.yml`
@@ -131,7 +131,7 @@ git push origin 0.34.0
     - Appends `[#NNNN]` to each entry, taken from the subject of the commit that added its entry file. Changelogger's own `--add-pr-num` follows `main`'s first-parent history, which on a stable release credits every entry to the release merge.
     - Aggregates every file in `.github/changelog/` into a new `## [0.34.0] - YYYY-MM-DD` section at the top of `CHANGELOG.md`.
     - **Deletes** the entry files so the next cycle starts clean.
-3. Commits the rolled-up `CHANGELOG.md` + the deleted entry files to a new `release/0.34.0` branch and **opens an auto-PR back to `develop`** for the release manager to merge after the release ships. The auto-PR carries the `Skip Changelog` label so the changelog gate doesn't block it.
+3. Commits the rolled-up `CHANGELOG.md` + the deleted entry files to a new `release/0.34.0` branch and **opens an auto-PR back to `develop`** for the release manager to merge after the release ships. It also opens **`sync/0.34.0-changelog-parity` against `main`** with the same changelog changes, which is not on auto-merge. Both PRs carry the `Skip Changelog` label so the changelog gate doesn't block them.
 4. Builds `gatherpress-alpha.0.34.0.zip`.
 5. Extracts the newly-written `[0.34.0]` section from `CHANGELOG.md` as the release body.
 6. Creates a GitHub **Release** with the zip attached, marked as **latest**.
@@ -141,6 +141,7 @@ git push origin 0.34.0
 - [GitHub Releases page](https://github.com/GatherPress/gatherpress-alpha/releases) shows the new tag as "Latest release".
 - The release body matches the `[0.34.0]` section that just landed in `CHANGELOG.md` on the `release/0.34.0` branch.
 - The auto-PR titled "Roll up changelog for 0.34.0" is open against `develop`. **Merge this once you've confirmed the release body renders correctly** — that returns the rolled-up `CHANGELOG.md` and the cleaned `.github/changelog/` to the long-lived branch.
+- The changelog parity PR titled "Carry the 0.34.0 changelog to main" is open against `main` (`sync/0.34.0-changelog-parity`). **Merge this with a merge commit (never squash)** so `main` is in step with the release and won't re-roll those same entries on the next patch release.
 
 ## Troubleshooting
 

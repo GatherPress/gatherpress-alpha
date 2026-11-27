@@ -5,7 +5,7 @@
  * Description:       Powering Communities with WordPress.
  * Author:            The GatherPress Community
  * Author URI:        https://gatherpress.org/
- * Version:           0.36.2
+ * Version:           0.37.0
  * Requires PHP:      8.1
  * Requires at least: 7.0
  * Requires Plugins:  gatherpress
@@ -24,8 +24,6 @@ if ( defined( 'GATHERPRESS_ALPHA_VERSION' ) ) {
 	return;
 }
 
-// Read by key: plugins hooking `extra_plugin_headers` push their headers ahead
-// of Version, so `current()` would return one of theirs instead.
 define( 'GATHERPRESS_ALPHA_VERSION', get_file_data( __FILE__, array( 'Version' => 'Version' ), 'plugin' )['Version'] );
 define( 'GATHERPRESS_ALPHA_CORE_PATH', __DIR__ );
 
